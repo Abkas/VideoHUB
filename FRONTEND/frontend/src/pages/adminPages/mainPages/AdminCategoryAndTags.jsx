@@ -15,7 +15,7 @@ const initialCategories = [
   "Technology",
 ];
 
-const AdminCategories = () => {
+const AdminCategoryAndTags = () => {
   const [categories, setCategories] = useState(initialCategories);
   const [newCategory, setNewCategory] = useState("");
 
@@ -26,7 +26,7 @@ const AdminCategories = () => {
     }
   };
 
-const handleDeleteCategory = (category: string) => {
+const handleDeleteCategory = (category) => {
     setCategories(categories.filter(c => c !== category));
   };
 
@@ -100,4 +100,4 @@ const handleDeleteCategory = (category: string) => {
   );
 };
 
-export default AdminCategories;
+export default AdminCategoryAndTags;

@@ -9,7 +9,7 @@ const mockReports = [
   { id: 5, content: "Video: Fitness routine", reason: "Dangerous content", reporter: "Concerned1", status: "Pending" },
 ];
 
-const AdminReports = () => {
+const AdminReportManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -76,4 +76,4 @@ const AdminReports = () => {
   );
 };
 
-export default AdminReports;
+export default AdminReportManagement;

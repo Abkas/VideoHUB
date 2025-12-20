@@ -16,9 +16,9 @@ const mockFavorites = [
   { id: 8, title: "Fitness workout routine at home", duration: "18:45", views: "3.2M" },
 ];
 
-const Profile = () => {
+const ProfilePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"videos" | "favorites">("videos");
+  const [activeTab, setActiveTab] = useState("videos");
 
   const currentVideos = activeTab === "videos" ? mockVideos : mockFavorites;
 
@@ -176,4 +176,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default ProfilePage;

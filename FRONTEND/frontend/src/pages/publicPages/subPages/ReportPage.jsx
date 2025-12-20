@@ -14,7 +14,7 @@ const reasons = [
   "Other"
 ];
 
-const Report = () => {
+const ReportPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [reason, setReason] = useState("Select reason");
   const [description, setDescription] = useState("");
@@ -154,4 +154,4 @@ const Report = () => {
   );
 };
 
-export default Report;
+export default ReportPage;

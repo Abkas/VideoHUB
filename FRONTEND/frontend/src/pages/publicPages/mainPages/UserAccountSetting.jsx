@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut } from "lucide-react";
 
-const SettingsPage = () => {
+const UserAccountSetting = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [username, setUsername] = useState("JohnDoe123");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -212,4 +212,4 @@ const SettingsPage = () => {
   );
 };
 
-export default SettingsPage;
+export default UserAccountSetting;

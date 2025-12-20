@@ -10,7 +10,7 @@ const mockUsers = [
   { id: 6, username: "BadActor99", email: "bad@example.com", status: "Banned", videos: 0 },
 ];
 
-const AdminUsers = () => {
+const AdminUserManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -83,4 +83,4 @@ const AdminUsers = () => {
   );
 };
 
-export default AdminUsers;
+export default AdminUserManagement;

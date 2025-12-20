@@ -19,7 +19,7 @@ const relatedVideos = [
   { id: 9, title: "Art tutorial watercolor painting basics", duration: "11:55", views: "654K" },
 ];
 
-const Watch = () => {
+const VideoPreviewPage = () => {
   const { id } = useParams();
   const [menuOpen, setMenuOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -214,4 +214,4 @@ const Watch = () => {
   );
 };
 
-export default Watch;
+export default VideoPreviewPage;

@@ -1,62 +1,46 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Browse from "./pages/Browse";
-import SearchPage from "./pages/SearchPage";
-import Watch from "./pages/Watch";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
-import Profile from "./pages/Profile";
-import UploadPage from "./pages/UploadPage";
-import SettingsPage from "./pages/SettingsPage";
-import Guidelines from "./pages/Guidelines";
-import Terms from "./pages/Terms";
-import Privacy from "./pages/Privacy";
-import Report from "./pages/Report";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard";
-import AdminVideos from "./pages/AdminVideos";
-import AdminUsers from "./pages/AdminUsers";
-import AdminReports from "./pages/AdminReports";
-import AdminCategories from "./pages/AdminCategories";
-import NotFound from "./pages/NotFound";
-
-const queryClient = new QueryClient();
+import HomePage from "./pages/publicPages/mainPages/HomePage";
+import BrowsePage from "./pages/publicPages/mainPages/BrowsePage";
+import VideoPreviewPage from "./pages/publicPages/mainPages/VideoPreviewPage";
+import LoginPage from "./pages/publicPages/mainPages/LoginPage";
+import RegisterPage from "./pages/publicPages/mainPages/RegisterPage";
+import ProfilePage from "./pages/publicPages/mainPages/ProfilePage";
+import UploadPage from "./pages/publicPages/mainPages/UploadPage";
+import UserAccountSetting from "./pages/publicPages/mainPages/UserAccountSetting";
+import Guidelines from "./pages/publicPages/subPages/Guidelines";
+import Terms from "./pages/publicPages/subPages/Terms";
+import PrivacyPage from "./pages/publicPages/subPages/PrivacyPage";
+import ReportPage from "./pages/publicPages/subPages/ReportPage";
+import AdminLogin from "./pages/adminPages/mainPages/AdminLogin";
+import AdminDashboard from "./pages/adminPages/mainPages/AdminDashboard";
+import AdminVideoManagement from "./pages/adminPages/mainPages/AdminVideoManagement";
+import AdminUserManagement from "./pages/adminPages/mainPages/AdminUserManagement";
+import AdminReportManagement from "./pages/adminPages/mainPages/AdminReportManagement";
+import AdminCategoryAndTags from "./pages/adminPages/mainPages/AdminCategoryAndTags";
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/browse" element={<Browse />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/watch/:id" element={<Watch />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/guidelines" element={<Guidelines />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/report" element={<Report />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/videos" element={<AdminVideos />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/reports" element={<AdminReports />} />
-          <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/browse" element={<BrowsePage />} />
+      <Route path="/watch/:id" element={<VideoPreviewPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<RegisterPage />} />
+      <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/upload" element={<UploadPage />} />
+      <Route path="/settings" element={<UserAccountSetting />} />
+      <Route path="/guidelines" element={<Guidelines />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/report" element={<ReportPage />} />
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/videos" element={<AdminVideoManagement />} />
+      <Route path="/admin/users" element={<AdminUserManagement />} />
+      <Route path="/admin/reports" element={<AdminReportManagement />} />
+      <Route path="/admin/categories" element={<AdminCategoryAndTags />} />
+    </Routes>
+  </BrowserRouter>
 );
 
 export default App;

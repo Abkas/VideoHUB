@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut } from "lucide-react";
 
-const Privacy = () => {
+const PrivacyPage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -169,4 +169,4 @@ const Privacy = () => {
   );
 };
 
-export default Privacy;
+export default PrivacyPage;

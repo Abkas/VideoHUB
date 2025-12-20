@@ -21,7 +21,7 @@ const categories = [
   "All", "Documentary", "Music", "Sports", "Gaming", "Lifestyle", "Education", "Entertainment", "Travel", "Food"
 ];
 
-const Browse = () => {
+const BrowsePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState("Newest");
@@ -191,4 +191,4 @@ const Browse = () => {
   );
 };
 
-export default Browse;
+export default BrowsePage;

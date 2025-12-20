@@ -10,7 +10,7 @@ const mockVideos = [
   { id: 6, title: "Fitness workout routine at home", uploader: "FitPro", status: "Active" },
 ];
 
-const AdminVideos = () => {
+const AdminVideoManagement = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -77,4 +77,4 @@ const AdminVideos = () => {
   );
 };
 
-export default AdminVideos;
+export default AdminVideoManagement;
