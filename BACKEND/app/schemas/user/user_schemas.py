@@ -31,7 +31,7 @@ class UserUpdate(BaseModel):
 
 # User Response (Public - what others see)
 class UserPublic(BaseModel):
-    id: int
+    id: str
     username: str
     display_name: Optional[str] = None
     profile_picture: Optional[str] = None
@@ -48,7 +48,7 @@ class UserPublic(BaseModel):
 
 # User Response (Private - what user sees about themselves)
 class UserPrivate(BaseModel):
-    id: int
+    id: str
     username: str
     email: EmailStr
     display_name: Optional[str] = None

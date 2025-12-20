@@ -3,7 +3,7 @@ from app.core.database import client
 from bson.objectid import ObjectId
 from datetime import datetime
 
-db = client['beads_db']
+db = client['videohub']
 
 
 def get_user_watch_history(user_id, skip=0, limit=20):

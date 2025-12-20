@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut } from "lucide-react";
+import { useAuthorizer } from "../../../Auth/Authorizer";
 
 const mockVideos = [
   { id: 1, title: "Amazing sunset timelapse over the ocean waves", duration: "12:34", views: "1.2M" },
@@ -24,6 +25,7 @@ const categories = [
 const HomePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState("All");
+  const { isAuthenticated, logout, user } = useAuthorizer();
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,9 +38,25 @@ const HomePage = () => {
             </Link>
             
             <div className="flex items-center gap-2">
-              <Link to="/search" className="p-2 hover:bg-secondary rounded-lg transition-colors">
-                <Search className="w-5 h-5 text-foreground" />
-              </Link>
+              {isAuthenticated ? (
+                <>
+                  <Link to="/profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors">
+                    <User className="w-4 h-4" />
+                    <span>{user?.username || 'Profile'}</span>
+                  </Link>
+                  <button 
+                    onClick={logout}
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-secondary rounded-lg transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Logout</span>
+                  </button>
+                </>
+              ) : (
+                <Link to="/login" className="hidden sm:flex px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
+                  Login
+                </Link>
+              )}
               <button 
                 onClick={() => setMenuOpen(true)}
                 className="p-2 hover:bg-secondary rounded-lg transition-colors"
@@ -102,10 +120,23 @@ const HomePage = () => {
                 <span>Privacy Policy</span>
               </Link>
               <div className="my-2 border-t border-border" />
-              <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-secondary rounded-lg transition-colors">
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </Link>
+              {isAuthenticated ? (
+                <button 
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-destructive hover:bg-secondary rounded-lg transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-primary hover:bg-secondary rounded-lg transition-colors">
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </Link>
+              )}
             </nav>
           </div>
         </div>

@@ -7,19 +7,19 @@ from app.model.user.user_model import User
 
 
 
-db = client['beads_db']  # Use your DB name here
+db = client['videohub']
 
 
 def register(user_data):
     # Convert Pydantic model to dict and hash password
     user_dict = user_data.dict()
-    user_dict['password'] = hash_password(user_data.password)
+    user_dict['hashed_password'] = hash_password(user_data.password)
+    user_dict.pop('password')  # Remove plain password field
     # Always set created_at to now, ignore frontend value
     user_dict['created_at'] = datetime.now()
     user_obj = User(**user_dict)
     user_doc = user_obj.dict(by_alias=True)
-    if user_doc.get('_id') is None:
-        user_doc.pop('_id')
+    user_doc.pop('_id', None)  # Remove _id if it exists
     result = db['users'].insert_one(user_doc)
     return str(result.inserted_id)
 
@@ -27,7 +27,7 @@ def login(user_data):
     email = user_data.email if hasattr(user_data, 'email') else user_data['email']
     password = user_data.password if hasattr(user_data, 'password') else user_data['password']
     user = db['users'].find_one({'email': email})
-    if user and verify_password(password, user['password']):
+    if user and verify_password(password, user['hashed_password']):
         token_data = {
             "user_id": str(user["_id"]),
             "email": user["email"],
@@ -42,6 +42,7 @@ def get_user_by_id(user_id):
     if user:
         user['id'] = str(user['_id'])  
         user.pop('_id')
+        user.pop('hashed_password', None)  # Remove password from response
     return user
 
 def update_user(user_id, update_data):

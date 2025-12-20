@@ -3,7 +3,7 @@ from app.core.database import client
 from bson.objectid import ObjectId
 from datetime import datetime
 
-db = client['beads_db']
+db = client['videohub']
 
 
 def create_like(like_data, user_id):

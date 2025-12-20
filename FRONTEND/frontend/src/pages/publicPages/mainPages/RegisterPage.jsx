@@ -1,15 +1,61 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle } from "lucide-react";
+import { signup } from "../../../api/publicAPI/userApi";
+import toast, { Toaster } from 'react-hot-toast';
 
 const RegisterPage = () => {
-  const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    email: "",
+    username: "",
+    password: "",
+    display_name: "",
+  });
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!ageConfirmed) {
+      toast.error("You must confirm that you are 18 years or older", {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(0 72% 51% / 0.3)',
+        },
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await signup(formData);
+      toast.success("Account created successfully! Please login.", {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(142 71% 45% / 0.3)',
+        },
+      });
+      setTimeout(() => navigate("/login"), 1500);
+    } catch (err) {
+      toast.error(err.message || "Registration failed. Please try again.", {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(0 72% 51% / 0.3)',
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
+      <Toaster position="top-right" />
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="text-3xl font-bold text-primary">
@@ -31,7 +77,7 @@ const RegisterPage = () => {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-6">
-          <div className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
                 Email
@@ -39,9 +85,10 @@ const RegisterPage = () => {
               <input
                 id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
                 placeholder="Enter your email"
+                required
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -53,23 +100,40 @@ const RegisterPage = () => {
               <input
                 id="username"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={formData.username}
+                onChange={(e) => setFormData({...formData, username: e.target.value})}
                 placeholder="Choose a username"
+                required
+                className="w-full px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="display_name" className="block text-sm font-medium text-foreground mb-2">
+                Display Name (Optional)
+              </label>
+              <input
+                id="display_name"
+                type="text"
+                value={formData.display_name}
+                onChange={(e) => setFormData({...formData, display_name: e.target.value})}
+                placeholder="How should we display your name?"
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-foreground mb-2">
-                Password
+                Password (minimum 8 characters)
               </label>
               <input
                 id="password"
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
+                value={formData.password}
+                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                placeholder="Create a password (min 8 characters)"
+                required
+                minLength={8}
                 className="w-full px-4 py-3 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -88,12 +152,13 @@ const RegisterPage = () => {
             </div>
 
             <button 
-              disabled={!ageConfirmed}
+              type="submit"
+              disabled={!ageConfirmed || loading}
               className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Create Account
+              {loading ? "Creating Account..." : "Create Account"}
             </button>
-          </div>
+          </form>
 
           <p className="text-center text-muted-foreground mt-6">
             Already have an account?{" "}
