@@ -20,6 +20,7 @@ def register(user_data):
     user_obj = User(**user_dict)
     user_doc = user_obj.dict(by_alias=True)
     user_doc.pop('_id', None)  # Remove _id if it exists
+    user_doc.pop('id', None)  # Remove id field (MongoDB uses _id)
     result = db['users'].insert_one(user_doc)
     return str(result.inserted_id)
 
@@ -28,10 +29,12 @@ def login(user_data):
     password = user_data.password if hasattr(user_data, 'password') else user_data['password']
     user = db['users'].find_one({'email': email})
     if user and verify_password(password, user['hashed_password']):
+        # Check if user is admin based on role field
+        is_admin = user.get("role", "user") == "admin"
         token_data = {
             "user_id": str(user["_id"]),
             "email": user["email"],
-            "is_admin": user.get("is_admin", False)
+            "is_admin": is_admin
         }
         access_token = create_access_token(token_data)
         return {'access_token': access_token, 'user': token_data}

@@ -1,9 +1,73 @@
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Shield, Users, Video, Flag, FolderOpen, LogOut, TrendingUp } from "lucide-react";
+import { useAuthorizer } from "../../../Auth/Authorizer";
+import { getPlatformStats } from "../../../api/adminAPI/adminApi";
+import toast, { Toaster } from 'react-hot-toast';
 
 const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { isAdmin, isAuthenticated, logout } = useAuthorizer();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/admin/login');
+      return;
+    }
+    
+    if (!isAdmin) {
+      toast.error('Access denied. Admin privileges required.', {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(0 72% 51%)'
+        }
+      });
+      navigate('/');
+      return;
+    }
+
+    fetchStats();
+  }, [isAuthenticated, isAdmin, navigate]);
+
+  const fetchStats = async () => {
+    try {
+      const data = await getPlatformStats();
+      setStats(data);
+    } catch (error) {
+      toast.error(error.message || 'Failed to load statistics', {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(0 72% 51%)'
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate('/admin/login');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
+      <Toaster position="top-center" />
       {/* Header */}
       <header className="sticky top-0 z-50 bg-card border-b border-border">
         <div className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4">
@@ -14,6 +78,7 @@ const AdminDashboard = () => {
             </div>
             <Link 
               to="/admin/login"
+              onClick={handleLogout}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <LogOut className="w-5 h-5" />
@@ -34,7 +99,7 @@ const AdminDashboard = () => {
                 <Users className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">12,458</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.total_users || 0}</p>
                 <p className="text-xs text-muted-foreground">Total Users</p>
               </div>
             </div>
@@ -46,7 +111,7 @@ const AdminDashboard = () => {
                 <Video className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">45,892</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.total_videos || 0}</p>
                 <p className="text-xs text-muted-foreground">Total Videos</p>
               </div>
             </div>

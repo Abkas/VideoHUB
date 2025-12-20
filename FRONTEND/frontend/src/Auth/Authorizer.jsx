@@ -7,6 +7,7 @@ export const AuthorizerProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Check if user is authenticated on mount
   useEffect(() => {
@@ -19,13 +20,16 @@ export const AuthorizerProvider = ({ children }) => {
       if (result.isValid) {
         setUser(result.user);
         setIsAuthenticated(true);
+        setIsAdmin(result.user?.role === 'admin' || false);
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setIsAdmin(false);
       }
     } catch (error) {
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -46,11 +50,13 @@ export const AuthorizerProvider = ({ children }) => {
     logoutApi();
     setUser(null);
     setIsAuthenticated(false);
+    setIsAdmin(false);
   };
 
   const value = {
     user,
     isAuthenticated,
+    isAdmin,
     loading,
     login,
     logout,

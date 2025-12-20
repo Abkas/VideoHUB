@@ -40,17 +40,18 @@ const HomePage = () => {
             <div className="flex items-center gap-2">
               {isAuthenticated ? (
                 <>
-                  <Link to="/profile" className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors">
-                    <User className="w-4 h-4" />
-                    <span>{user?.username || 'Profile'}</span>
-                  </Link>
-                  <button 
-                    onClick={logout}
-                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-sm text-destructive hover:bg-secondary rounded-lg transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Logout</span>
-                  </button>
+                  <div className="hidden sm:flex items-center gap-3">
+                    <span className="text-sm px-3 py-1.5 bg-secondary/50 rounded-lg">
+                      Hello, <span className="text-primary font-semibold">{user?.display_name || user?.username || 'User'}</span>
+                    </span>
+                    <Link 
+                      to="/profile" 
+                      className="flex items-center justify-center p-2 text-foreground hover:bg-secondary rounded-lg transition-colors"
+                      title="Profile"
+                    >
+                      <User className="w-5 h-5" />
+                    </Link>
+                  </div>
                 </>
               ) : (
                 <Link to="/login" className="hidden sm:flex px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity">
@@ -72,7 +73,7 @@ const HomePage = () => {
       {menuOpen && (
         <div className="fixed inset-0 z-50">
           <div 
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in"
+            className="absolute inset-0 bg-black/20 backdrop-blur-md animate-fade-in"
             onClick={() => setMenuOpen(false)}
           />
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border animate-slide-in">

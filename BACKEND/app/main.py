@@ -6,8 +6,9 @@ from app.core.database import client
 
 # Import routers
 from app.routes.user import user_routes, payment_transaction_routes, subscription_routes, watch_history_routes
-from app.routes.utility import playlist_routes
+from app.routes.utility import playlist_routes, category_routes, tag_routes
 from app.routes.video import comment_routes, like_routes, video_routes, view_routes
+from app.routes.admin import admin_routes
 
 load_dotenv()
 
@@ -49,9 +50,14 @@ app.include_router(watch_history_routes.router)
 
 # Utility routes
 app.include_router(playlist_routes.router)
+app.include_router(category_routes.router)
+app.include_router(tag_routes.router)
 
 # Video routes
 app.include_router(comment_routes.router)
 app.include_router(like_routes.router)
 app.include_router(video_routes.router)
 app.include_router(view_routes.router)
+
+# Admin routes
+app.include_router(admin_routes.router)

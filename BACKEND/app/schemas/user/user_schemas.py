@@ -56,8 +56,8 @@ class UserPrivate(BaseModel):
     cover_image: Optional[str] = None
     bio: Optional[str] = None
     location: Optional[str] = None
-    role: str
-    status: str
+    role: str = "user"
+    status: str = "active"
     current_subscription_id: Optional[int] = None
     total_videos: int = 0
     total_views: int = 0
