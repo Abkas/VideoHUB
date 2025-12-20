@@ -83,3 +83,13 @@ export async function deleteTag(tagId) {
     throw new Error(error.response?.data?.detail || "Failed to delete tag");
   }
 }
+
+// Sync video counts
+export async function syncVideoCounts() {
+  try {
+    const response = await axiosInstance.post("/admin/sync-video-counts");
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to sync video counts");
+  }
+}

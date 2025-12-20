@@ -18,6 +18,8 @@ import AdminVideoManagement from "./pages/adminPages/mainPages/AdminVideoManagem
 import AdminUserManagement from "./pages/adminPages/mainPages/AdminUserManagement";
 import AdminReportManagement from "./pages/adminPages/mainPages/AdminReportManagement";
 import AdminCategoryAndTags from "./pages/adminPages/mainPages/AdminCategoryAndTags";
+import UserDetailPage from "./pages/adminPages/subPages/UserDetailPage";
+import VideoDetailPage from "./pages/adminPages/subPages/VideoDetailPage";
 
 const App = () => (
   <AuthorizerProvider>
@@ -38,7 +40,9 @@ const App = () => (
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/videos" element={<AdminVideoManagement />} />
+        <Route path="/admin/videos/:videoId" element={<VideoDetailPage />} />
         <Route path="/admin/users" element={<AdminUserManagement />} />
+        <Route path="/admin/users/:userId" element={<UserDetailPage />} />
         <Route path="/admin/reports" element={<AdminReportManagement />} />
         <Route path="/admin/categories" element={<AdminCategoryAndTags />} />
       </Routes>

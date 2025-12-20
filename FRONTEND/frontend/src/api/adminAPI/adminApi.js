@@ -31,3 +31,53 @@ export async function getAllUsers(skip = 0, limit = 50) {
     throw new Error(error.response?.data?.detail || "Failed to fetch users");
   }
 }
+
+// Get user details
+export async function getUserDetails(userId) {
+  try {
+    const response = await axiosInstance.get(`/admin/users/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to fetch user details");
+  }
+}
+
+// Ban user
+export async function banUser(userId) {
+  try {
+    const response = await axiosInstance.put(`/admin/users/${userId}/ban`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to ban user");
+  }
+}
+
+// Unban user
+export async function unbanUser(userId) {
+  try {
+    const response = await axiosInstance.put(`/admin/users/${userId}/unban`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to unban user");
+  }
+}
+
+// Promote user to admin
+export async function promoteToAdmin(userId) {
+  try {
+    const response = await axiosInstance.put(`/admin/users/${userId}/promote`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to promote user");
+  }
+}
+
+// Demote admin to regular user
+export async function demoteFromAdmin(userId) {
+  try {
+    const response = await axiosInstance.put(`/admin/users/${userId}/demote`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to demote user");
+  }
+}

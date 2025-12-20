@@ -8,10 +8,13 @@ import toast, { Toaster } from 'react-hot-toast';
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { isAdmin, isAuthenticated, logout } = useAuthorizer();
+  const { isAdmin, isAuthenticated, logout, loading: authLoading } = useAuthorizer();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!isAuthenticated) {
       navigate('/admin/login');
       return;
@@ -30,7 +33,7 @@ const AdminDashboard = () => {
     }
 
     fetchStats();
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, navigate, authLoading]);
 
   const fetchStats = async () => {
     try {

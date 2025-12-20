@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, ArrowLeft, Trash2, Plus, Edit2, Save, X } from "lucide-react";
+import { Shield, ArrowLeft, Trash2, Plus, Edit2, Save, X, RefreshCw } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import { 
   getAllCategories, createCategory, updateCategory, deleteCategory,
-  getAllTags, createTag, updateTag, deleteTag 
+  getAllTags, createTag, updateTag, deleteTag, syncVideoCounts
 } from "../../../api/adminAPI/categoryTagApi";
 import toast, { Toaster } from 'react-hot-toast';
 
@@ -19,16 +19,20 @@ const AdminCategoryAndTags = () => {
   const [activeTab, setActiveTab] = useState('categories'); // 'categories' or 'tags'
   const [showAddCategoryForm, setShowAddCategoryForm] = useState(false);
   const [showAddTagForm, setShowAddTagForm] = useState(false);
-  const { isAdmin, isAuthenticated } = useAuthorizer();
+  const { isAdmin, isAuthenticated, loading: authLoading } = useAuthorizer();
   const navigate = useNavigate();
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
     if (!isAuthenticated || !isAdmin) {
       navigate('/admin/login');
       return;
     }
     fetchData();
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isAuthenticated, isAdmin, navigate, authLoading]);
 
   const fetchData = async () => {
     try {
@@ -215,7 +219,33 @@ const AdminCategoryAndTags = () => {
     }
   };
 
-  if (loading) {
+  const handleSyncVideoCounts = async () => {
+    try {
+      setSyncing(true);
+      const result = await syncVideoCounts();
+      toast.success(`Video counts synced! ${result.categories_updated} categories and ${result.tags_updated} tags updated.`, {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(142 76% 36%)'
+        },
+        duration: 5000
+      });
+      fetchData();
+    } catch (error) {
+      toast.error(error.message, {
+        style: {
+          background: 'hsl(0 0% 11%)',
+          color: 'hsl(0 0% 95%)',
+          border: '1px solid hsl(0 72% 51%)'
+        }
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -249,6 +279,19 @@ const AdminCategoryAndTags = () => {
       </header>
 
       <main className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4 py-6 space-y-8">
+        {/* Header with Sync Button */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-foreground">Categories & Tags Management</h1>
+          <button
+            onClick={handleSyncVideoCounts}
+            disabled={syncing}
+            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing...' : 'Sync Video Counts'}</span>
+          </button>
+        </div>
+
         {/* Tab Navigation */}
         <div className="flex items-center justify-between">
           <div className="flex gap-2 bg-card border border-border rounded-lg p-1">
