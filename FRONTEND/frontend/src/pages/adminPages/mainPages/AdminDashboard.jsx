@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Shield, Users, Video, Flag, FolderOpen, LogOut, TrendingUp } from "lucide-react";
+import { Shield, Users, Video, Flag, FolderOpen, LogOut, TrendingUp, CreditCard } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import { getPlatformStats } from "../../../api/adminAPI/adminApi";
 import toast, { Toaster } from 'react-hot-toast';
@@ -189,6 +189,17 @@ const AdminDashboard = () => {
             <div>
               <p className="font-medium text-foreground">Category Management</p>
               <p className="text-sm text-muted-foreground">Add or remove video categories</p>
+            </div>
+          </Link>
+
+          <Link 
+            to="/admin/subscriptions"
+            className="flex items-center gap-3 p-4 bg-card border border-border rounded-xl hover:bg-secondary transition-colors"
+          >
+            <CreditCard className="w-5 h-5 text-yellow-400" />
+            <div>
+              <p className="font-medium text-foreground">Subscription Management</p>
+              <p className="text-sm text-muted-foreground">Manage user subscriptions and payments</p>
             </div>
           </Link>
         </div>

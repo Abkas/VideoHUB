@@ -25,8 +25,14 @@ def create_subscription(subscription_data, user_id):
 
 
 def get_subscription_by_id(subscription_id):
-    """Get subscription by ID"""
-    subscription = db['subscriptions'].find_one({'_id': ObjectId(subscription_id)})
+    """Get subscription by ID - checks both subscription_plans and subscriptions"""
+    # Try subscription_plans first
+    subscription = db['subscription_plans'].find_one({'_id': ObjectId(subscription_id)})
+    
+    # If not found in plans, try subscriptions collection
+    if not subscription:
+        subscription = db['subscriptions'].find_one({'_id': ObjectId(subscription_id)})
+    
     if subscription:
         subscription['id'] = str(subscription['_id'])
         subscription.pop('_id')

@@ -9,6 +9,7 @@ from app.routes.user import user_routes, payment_transaction_routes, subscriptio
 from app.routes.utility import playlist_routes, category_routes, tag_routes
 from app.routes.video import comment_routes, like_routes, video_routes, view_routes
 from app.routes.admin import admin_routes
+from app.routes.admin import subscription_routes as admin_subscription_routes
 
 load_dotenv()
 
@@ -20,7 +21,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this in production
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Specific origins for credentials
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -61,3 +62,4 @@ app.include_router(view_routes.router)
 
 # Admin routes
 app.include_router(admin_routes.router)
+app.include_router(admin_subscription_routes.router)

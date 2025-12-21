@@ -20,6 +20,8 @@ import AdminReportManagement from "./pages/adminPages/mainPages/AdminReportManag
 import AdminCategoryAndTags from "./pages/adminPages/mainPages/AdminCategoryAndTags";
 import UserDetailPage from "./pages/adminPages/subPages/UserDetailPage";
 import VideoDetailPage from "./pages/adminPages/subPages/VideoDetailPage";
+import SubscriptionManagementPage from "./pages/adminPages/mainPages/SubscriptionManagementPage";import SubscriptionDetailPage from "./pages/adminPages/subPages/SubscriptionDetailPage";
+import PricingPage from "./pages/publicPages/subPages/PricingPage";
 
 const App = () => (
   <AuthorizerProvider>
@@ -37,6 +39,7 @@ const App = () => (
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/report" element={<ReportPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/videos" element={<AdminVideoManagement />} />
@@ -45,6 +48,8 @@ const App = () => (
         <Route path="/admin/users/:userId" element={<UserDetailPage />} />
         <Route path="/admin/reports" element={<AdminReportManagement />} />
         <Route path="/admin/categories" element={<AdminCategoryAndTags />} />
+        <Route path="/admin/subscriptions" element={<SubscriptionManagementPage />} />
+        <Route path="/admin/subscriptions/:subscriptionId" element={<SubscriptionDetailPage />} />
       </Routes>
     </BrowserRouter>
   </AuthorizerProvider>

@@ -15,6 +15,12 @@ export default function VideoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [toggleLoading, setToggleLoading] = useState({
+    premium: false,
+    comments: false,
+    downloads: false,
+    featured: false
+  });
 
   const fetchVideoDetails = useCallback(async () => {
     try {
@@ -60,51 +66,85 @@ export default function VideoDetailPage() {
 
   const handleStatusChange = async (newStatus) => {
     try {
-      await updateVideo(videoId, { ...video, status: newStatus });
+      const updatedVideo = { ...video, status: newStatus };
+      setVideo(updatedVideo);
+      await updateVideo(videoId, updatedVideo);
       toast.success(`Video status changed to ${newStatus}`);
-      fetchVideoDetails();
     } catch (error) {
       toast.error(error.message);
+      fetchVideoDetails();
     }
   };
 
   const handleFeatureToggle = async () => {
+    if (toggleLoading.featured) return;
+    
+    setToggleLoading(prev => ({ ...prev, featured: true }));
+    const newValue = !video.is_featured;
+    
     try {
-      await updateVideo(videoId, { ...video, is_featured: !video.is_featured });
-      toast.success(video.is_featured ? 'Video unfeatured' : 'Video featured');
-      fetchVideoDetails();
+      setVideo({ ...video, is_featured: newValue });
+      await updateVideo(videoId, { ...video, is_featured: newValue });
+      toast.success(newValue ? 'Video featured' : 'Video unfeatured');
     } catch (error) {
       toast.error(error.message);
+      setVideo({ ...video, is_featured: !newValue });
+    } finally {
+      setToggleLoading(prev => ({ ...prev, featured: false }));
     }
   };
 
   const handleTogglePremium = async () => {
+    if (toggleLoading.premium) return;
+    
+    setToggleLoading(prev => ({ ...prev, premium: true }));
+    const newValue = !video.is_premium;
+    
     try {
-      await updateVideo(videoId, { ...video, is_premium: !video.is_premium });
-      toast.success(video.is_premium ? 'Premium disabled' : 'Premium enabled');
-      fetchVideoDetails();
+      setVideo({ ...video, is_premium: newValue });
+      await updateVideo(videoId, { ...video, is_premium: newValue });
+      toast.success(newValue ? 'Premium enabled' : 'Premium disabled');
     } catch (error) {
       toast.error(error.message);
+      setVideo({ ...video, is_premium: !newValue });
+    } finally {
+      setToggleLoading(prev => ({ ...prev, premium: false }));
     }
   };
 
   const handleToggleComments = async () => {
+    if (toggleLoading.comments) return;
+    
+    setToggleLoading(prev => ({ ...prev, comments: true }));
+    const newValue = !video.allow_comments;
+    
     try {
-      await updateVideo(videoId, { ...video, allow_comments: !video.allow_comments });
-      toast.success(video.allow_comments ? 'Comments disabled' : 'Comments enabled');
-      fetchVideoDetails();
+      setVideo({ ...video, allow_comments: newValue });
+      await updateVideo(videoId, { ...video, allow_comments: newValue });
+      toast.success(newValue ? 'Comments enabled' : 'Comments disabled');
     } catch (error) {
       toast.error(error.message);
+      setVideo({ ...video, allow_comments: !newValue });
+    } finally {
+      setToggleLoading(prev => ({ ...prev, comments: false }));
     }
   };
 
   const handleToggleDownloads = async () => {
+    if (toggleLoading.downloads) return;
+    
+    setToggleLoading(prev => ({ ...prev, downloads: true }));
+    const newValue = !video.allow_downloads;
+    
     try {
-      await updateVideo(videoId, { ...video, allow_downloads: !video.allow_downloads });
-      toast.success(video.allow_downloads ? 'Downloads disabled' : 'Downloads enabled');
-      fetchVideoDetails();
+      setVideo({ ...video, allow_downloads: newValue });
+      await updateVideo(videoId, { ...video, allow_downloads: newValue });
+      toast.success(newValue ? 'Downloads enabled' : 'Downloads disabled');
     } catch (error) {
       toast.error(error.message);
+      setVideo({ ...video, allow_downloads: !newValue });
+    } finally {
+      setToggleLoading(prev => ({ ...prev, downloads: false }));
     }
   };
 
@@ -385,13 +425,21 @@ export default function VideoDetailPage() {
               </div>
               <button
                 onClick={handleTogglePremium}
-                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-opacity ${
+                disabled={toggleLoading.premium}
+                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-all duration-300 transform ${
                   video.is_premium 
-                    ? 'bg-yellow-600 text-white hover:opacity-90' 
+                    ? 'bg-yellow-600 text-white hover:opacity-90 scale-100' 
                     : 'bg-muted text-muted-foreground hover:opacity-90'
-                }`}
+                } ${toggleLoading.premium ? 'opacity-50 scale-95' : ''}`}
               >
-                {video.is_premium ? 'Yes' : 'No'}
+                {toggleLoading.premium ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                ) : video.is_premium ? 'Yes' : 'No'}
               </button>
             </div>
             <div className="flex items-center justify-between p-2 sm:p-3 bg-secondary rounded-lg">
@@ -401,13 +449,21 @@ export default function VideoDetailPage() {
               </div>
               <button
                 onClick={handleToggleComments}
-                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-opacity ${
+                disabled={toggleLoading.comments}
+                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-all duration-300 transform ${
                   video.allow_comments 
-                    ? 'bg-green-600 text-white hover:opacity-90' 
+                    ? 'bg-green-600 text-white hover:opacity-90 scale-100' 
                     : 'bg-muted text-muted-foreground hover:opacity-90'
-                }`}
+                } ${toggleLoading.comments ? 'opacity-50 scale-95' : ''}`}
               >
-                {video.allow_comments ? 'On' : 'Off'}
+                {toggleLoading.comments ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                ) : video.allow_comments ? 'On' : 'Off'}
               </button>
             </div>
             <div className="flex items-center justify-between p-2 sm:p-3 bg-secondary rounded-lg">
@@ -417,13 +473,21 @@ export default function VideoDetailPage() {
               </div>
               <button
                 onClick={handleToggleDownloads}
-                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-opacity ${
+                disabled={toggleLoading.downloads}
+                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium cursor-pointer transition-all duration-300 transform ${
                   video.allow_downloads 
-                    ? 'bg-green-600 text-white hover:opacity-90' 
+                    ? 'bg-green-600 text-white hover:opacity-90 scale-100' 
                     : 'bg-muted text-muted-foreground hover:opacity-90'
-                }`}
+                } ${toggleLoading.downloads ? 'opacity-50 scale-95' : ''}`}
               >
-                {video.allow_downloads ? 'On' : 'Off'}
+                {toggleLoading.downloads ? (
+                  <span className="flex items-center gap-1">
+                    <svg className="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                ) : video.allow_downloads ? 'On' : 'Off'}
               </button>
             </div>
           </div>

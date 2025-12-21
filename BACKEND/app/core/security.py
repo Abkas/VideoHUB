@@ -8,7 +8,7 @@ import os
 
 load_dotenv()
 
-oauth2_scheme = HTTPBearer()
+oauth2_scheme = HTTPBearer(auto_error=False)
 
 #HASH PASSOWRD
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -43,6 +43,8 @@ def decode_access_token(token: str):
 
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Authorization required")
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -57,6 +59,8 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_
 
 # Admin user dependency
 def get_admin_user(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)):
+    if credentials is None:
+        raise HTTPException(status_code=401, detail="Authorization required")
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
