@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from app.core.database import client
 
 # Import routers
-from app.routes.user import user_routes, payment_transaction_routes, subscription_routes, watch_history_routes
+from app.routes.user import user_routes, payment_transaction_routes, subscription_routes, watch_history_routes, follower_routes
 from app.routes.utility import playlist_routes, category_routes, tag_routes
 from app.routes.video import comment_routes, like_routes, video_routes, view_routes
 from app.routes.admin import admin_routes
@@ -48,6 +48,7 @@ app.include_router(user_routes.router)
 app.include_router(payment_transaction_routes.router)
 app.include_router(subscription_routes.router)
 app.include_router(watch_history_routes.router)
+app.include_router(follower_routes.router)
 
 # Utility routes
 app.include_router(playlist_routes.router)
