@@ -161,6 +161,11 @@ export default function SubscriptionManagementPage() {
 
     try {
       const { id, ...updateData } = editSubscription;
+      // Transform custom_price to price for API
+      if (updateData.custom_price !== undefined) {
+        updateData.price = updateData.custom_price;
+        delete updateData.custom_price;
+      }
       await updateSubscription(id, updateData);
       toast.success('Subscription plan updated successfully');
       setShowEditModal(false);

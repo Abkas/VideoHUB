@@ -27,9 +27,54 @@ class AdminSubscriptionCreate(BaseModel):
 
 # Subscription Update
 class SubscriptionUpdate(BaseModel):
-    auto_renew: Optional[bool] = None
-    payment_method: Optional[str] = None
+    # Basic info
+    subscription_name: Optional[str] = None
+    plan: Optional[str] = None
     status: Optional[str] = None
+    billing_cycle: Optional[str] = None
+    
+    # Pricing
+    price: Optional[float] = None
+    currency: Optional[str] = None
+    discount_percentage: Optional[float] = None
+    discount_code: Optional[str] = None
+    final_price: Optional[float] = None
+    
+    # Duration (for subscription plans)
+    duration_value: Optional[int] = None
+    duration_unit: Optional[str] = None
+    
+    # Trial
+    is_trial: Optional[bool] = None
+    trial_days: Optional[int] = None
+    
+    # Dates
+    expires_at: Optional[datetime] = None
+    next_billing_date: Optional[datetime] = None
+    
+    # Auto-renewal
+    auto_renew: Optional[bool] = None
+    
+    # Payment
+    payment_method: Optional[str] = None
+    payment_provider: Optional[str] = None
+    payment_gateway: Optional[str] = None
+    
+    # Features
+    description: Optional[str] = None
+    features: Optional[List[str]] = None
+    max_quality: Optional[str] = None
+    concurrent_streams: Optional[int] = None
+    downloads_per_month: Optional[int] = None
+    ad_free: Optional[bool] = None
+    
+    # Plan limits
+    upload_limit_gb: Optional[int] = None
+    video_quality_limit: Optional[str] = None
+    download_allowed: Optional[bool] = None
+    
+    # Notes
+    notes: Optional[str] = None
 
 
 # Subscription Response

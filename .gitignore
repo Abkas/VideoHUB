@@ -76,6 +76,7 @@ dmypy.json
 uploads/
 media/
 static/uploads/
+readme.txt
 
 # Temporary files
 *.tmp
