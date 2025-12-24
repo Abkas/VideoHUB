@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Play, Clock, User } from "lucide-react";
 
 const VideoCard = ({ video }) => {
@@ -30,8 +30,20 @@ const VideoCard = ({ video }) => {
     return `${Math.floor(days / 365)} years ago`;
   };
 
+
+
+  const navigate = useNavigate();
+  const handleCardClick = (e) => {
+    // Prevent navigation if clicking on uploader links or follow button
+    if (
+      e.target.closest('.uploader-link')
+    ) return;
+    navigate(`/watch/${video.id}`);
+  };
+
   return (
-    <Link to={`/watch/${video.id}`} className="group">
+    <div className="group block cursor-pointer p-2" onClick={handleCardClick}>
+      {/* Video Thumbnail */}
       <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
         {video.thumbnail_url ? (
           <img 
@@ -49,25 +61,34 @@ const VideoCard = ({ video }) => {
           {formatDuration(video.duration)}
         </div>
       </div>
-      <div className="mt-2 flex gap-2">
-        {/* Uploader Avatar */}
-        <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
-          <User className="w-4 h-4 text-muted-foreground" />
-        </div>
-        {/* Video Info */}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-            {video.title}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {video.uploader_username || 'Unknown'}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatViews(video.views)} views • {formatTimeAgo(video.created_at || video.published_at)}
-          </p>
-        </div>
+      {/* Video Title */}
+      <h3 className="mt-3 text-base font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+        {video.title}
+      </h3>
+      {/* Uploader Info and Views */}
+      <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+        <Link
+          to={`/user/${video.uploader_id}`}
+          className="uploader-link flex items-center gap-2 hover:text-primary"
+          onClick={e => e.stopPropagation()}
+        >
+          <span className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden hover:scale-105 transition-transform">
+            {video.uploader_profile_picture ? (
+              <img src={video.uploader_profile_picture} alt={video.uploader_username} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-4 h-4 text-muted-foreground" />
+            )}
+          </span>
+          <span className="font-semibold truncate">{video.uploader_username || 'Unknown'}</span>
+        </Link>
+        <span className="mx-2 text-muted-foreground">|</span>
+        <span className="text-xs text-muted-foreground">{formatViews(video.views)} views</span>
       </div>
-    </Link>
+      {/* Meta Info */}
+      <div className="mt-1 text-xs text-muted-foreground">
+        {formatTimeAgo(video.created_at || video.published_at)}
+      </div>
+    </div>
   );
 };
 

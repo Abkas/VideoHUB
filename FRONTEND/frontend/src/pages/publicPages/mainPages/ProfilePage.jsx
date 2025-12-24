@@ -3,13 +3,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera, Pencil } from "lucide-react";
 import { verifyToken, uploadAvatar, deleteAvatar, updateUserProfile } from "../../../api/publicAPI/userApi";
 import { axiosInstance } from "../../../api/lib/axios";
-import { getMyFollowers, getMyFollowing } from "../../../api/publicAPI/followerApi";
+import { getMyFollowers, getMyFollowing, unfollowUser } from "../../../api/publicAPI/followerApi";
 import { getMyLikedVideos } from "../../../api/publicAPI/likeApi";
 import { getMySavedVideos } from "../../../api/publicAPI/savedVideoApi";
 import toast from "react-hot-toast";
 import ConfirmAvatarChangeDialog from "../../../components/ConfirmDialog";
 
 const ProfilePage = () => {
+  // Remove follower handler
+  const handleRemoveFollower = async (followerId) => {
+    // TODO: Implement remove follower API call
+    // Example: await removeFollower(followerId);
+    setFollowers(f => f.filter(fol => fol.follower_id !== followerId));
+    toast.success("Follower removed");
+  };
+
+  // Unfollow handler
+  const handleUnfollow = async (followingId) => {
+    // TODO: Implement unfollow API call
+    await unfollowUser(followingId);
+    setFollowing(f => f.filter(fol => fol.following_id !== followingId));
+    toast.success("Unfollowed");
+  };
     // Edit profile modal state
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [editDisplayName, setEditDisplayName] = useState("");
@@ -101,6 +116,18 @@ const ProfilePage = () => {
     fetchLikedVideos();
     fetchSavedVideos();
   }, [fetchUserData]);
+
+  // Debug: Log followers and following data
+  useEffect(() => {
+    if (followers.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('Followers:', followers);
+    }
+    if (following.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('Following:', following);
+    }
+  }, [followers, following]);
 
   const fetchLikedVideos = async () => {
     if (likedVideos.length > 0) return; // Already loaded
@@ -654,22 +681,35 @@ const ProfilePage = () => {
                       key={item.id}
                       className="flex items-center gap-3 p-3 hover:bg-secondary rounded-lg transition-colors"
                     >
-                      <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-foreground truncate">
-                          {item.follower_display_name || item.follower_username}
-                        </h4>
-                        <p className="text-sm text-muted-foreground truncate">@{item.follower_username}</p>
-                      </div>
                       <Link
                         to={`/user/${item.follower_id}`}
                         onClick={() => setShowFollowersModal(false)}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                       >
-                        View
+                        {item.follower_avatar_url ? (
+                          <img src={item.follower_avatar_url} alt="avatar" className="w-10 h-10 object-cover rounded-full" />
+                        ) : (
+                          <User className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </Link>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/user/${item.follower_id}`}
+                          onClick={() => setShowFollowersModal(false)}
+                          className="block"
+                        >
+                          <h4 className="font-medium text-foreground truncate">
+                            {item.follower_display_name || item.follower_username}
+                          </h4>
+                          <p className="text-sm text-muted-foreground truncate">@{item.follower_username}</p>
+                        </Link>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveFollower(item.follower_id)}
+                        className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                      >
+                        Remove
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -712,22 +752,35 @@ const ProfilePage = () => {
                       key={item.id}
                       className="flex items-center gap-3 p-3 hover:bg-secondary rounded-lg transition-colors"
                     >
-                      <div className="w-10 h-10 bg-secondary rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-foreground truncate">
-                          {item.following_display_name || item.following_username}
-                        </h4>
-                        <p className="text-sm text-muted-foreground truncate">@{item.following_username}</p>
-                      </div>
                       <Link
                         to={`/user/${item.following_id}`}
                         onClick={() => setShowFollowingModal(false)}
-                        className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
                       >
-                        View
+                        {item.following_avatar_url ? (
+                          <img src={item.following_avatar_url} alt="avatar" className="w-10 h-10 object-cover rounded-full" />
+                        ) : (
+                          <User className="w-5 h-5 text-muted-foreground" />
+                        )}
                       </Link>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/user/${item.following_id}`}
+                          onClick={() => setShowFollowingModal(false)}
+                          className="block"
+                        >
+                          <h4 className="font-medium text-foreground truncate">
+                            {item.following_display_name || item.following_username}
+                          </h4>
+                          <p className="text-sm text-muted-foreground truncate">@{item.following_username}</p>
+                        </Link>
+                      </div>
+                      <button
+                        onClick={() => handleUnfollow(item.following_id)}
+                        className="px-3 py-1.5 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
+                      >
+                        Unfollow
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -741,3 +794,4 @@ const ProfilePage = () => {
 };
 
 export default ProfilePage;
+

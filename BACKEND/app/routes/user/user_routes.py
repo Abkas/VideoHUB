@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from app.schemas.user.user_schemas import UserPublic
 from app.schemas.user.user_schemas import UserRegister, UserLogin, UserPrivate, UserUpdate
 from app.services.user.user_services import register, login, get_user_by_id, update_user, delete_user
 from app.core.security import get_current_user  # For authentication
@@ -121,3 +122,11 @@ def delete_avatar(current_user: dict = Depends(get_current_user)):
         }
     )
     return {"message": "Avatar removed successfully"}
+
+@router.get('/{user_id}', response_model=UserPublic)
+def get_user_public_profile(user_id: str):
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    # Only return public fields
+    return user

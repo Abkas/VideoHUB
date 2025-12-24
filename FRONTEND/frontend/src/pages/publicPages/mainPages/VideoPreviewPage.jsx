@@ -472,9 +472,13 @@ const VideoPreviewPage = () => {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <Link 
                       to={`/user/${video.uploader_id}`}
-                      className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0"
+                      className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0 overflow-hidden"
                     >
-                      <User className="w-6 h-6 text-primary" />
+                      {video.uploader_profile_picture ? (
+                        <img src={video.uploader_profile_picture} alt={video.uploader_username} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-6 h-6 text-primary" />
+                      )}
                     </Link>
                     <div className="flex-1 min-w-0">
                       <Link 
@@ -488,7 +492,6 @@ const VideoPreviewPage = () => {
                       </p>
                     </div>
                   </div>
-                  
                   {isAuthenticated && user && video.uploader_id !== user.user_id && (
                     <button
                       onClick={handleFollow}
@@ -512,7 +515,6 @@ const VideoPreviewPage = () => {
                     </button>
                   )}
                 </div>
-                
                 {video.tags && video.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {video.tags.slice(0, 5).map((tag, idx) => (

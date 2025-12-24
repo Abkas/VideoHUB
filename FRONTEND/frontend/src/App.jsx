@@ -6,6 +6,7 @@ import VideoPreviewPage from "./pages/publicPages/mainPages/VideoPreviewPage";
 import LoginPage from "./pages/publicPages/mainPages/LoginPage";
 import RegisterPage from "./pages/publicPages/mainPages/RegisterPage";
 import ProfilePage from "./pages/publicPages/mainPages/ProfilePage";
+import PublicUserProfilePage from "./pages/publicPages/mainPages/PublicUserProfilePage";
 import UploadPage from "./pages/publicPages/mainPages/UploadPage";
 import UserAccountSetting from "./pages/publicPages/mainPages/UserAccountSetting";
 import Guidelines from "./pages/publicPages/subPages/Guidelines";
@@ -33,6 +34,7 @@ const App = () => (
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/user/:id" element={<PublicUserProfilePage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/settings" element={<UserAccountSetting />} />
         <Route path="/guidelines" element={<Guidelines />} />

@@ -19,14 +19,14 @@ router = APIRouter(prefix="/followers", tags=["Followers"])
 @router.post("/follow", status_code=status.HTTP_201_CREATED)
 def follow_user_route(follow_data: FollowCreate, current_user: dict = Depends(get_current_user)):
     """Follow a user"""
-    follow_id = follow_user(current_user['user_id'], follow_data.following_id)
+    follow_id = follow_user(str(current_user['user_id']), str(follow_data.following_id))
     return {"message": "Successfully followed user", "follow_id": follow_id}
 
 
 @router.delete("/unfollow/{following_id}")
 def unfollow_user_route(following_id: str, current_user: dict = Depends(get_current_user)):
     """Unfollow a user"""
-    success = unfollow_user(current_user['user_id'], following_id)
+    success = unfollow_user(str(current_user['user_id']), str(following_id))
     if not success:
         raise HTTPException(status_code=404, detail="Follow relationship not found")
     return {"message": "Successfully unfollowed user"}
@@ -35,28 +35,28 @@ def unfollow_user_route(following_id: str, current_user: dict = Depends(get_curr
 @router.get("/me/followers", response_model=List[FollowerResponse])
 def get_my_followers(skip: int = 0, limit: int = 1000, current_user: dict = Depends(get_current_user)):
     """Get current user's followers"""
-    followers = get_followers(current_user['user_id'], skip, limit)
+    followers = get_followers(str(current_user['user_id']), skip, limit)
     return followers
 
 
 @router.get("/me/following", response_model=List[FollowingResponse])
 def get_my_following(skip: int = 0, limit: int = 1000, current_user: dict = Depends(get_current_user)):
     """Get users that current user follows"""
-    following = get_following(current_user['user_id'], skip, limit)
+    following = get_following(str(current_user['user_id']), skip, limit)
     return following
 
 
 @router.get("/{user_id}/followers", response_model=List[FollowerResponse])
 def get_user_followers(user_id: str, skip: int = 0, limit: int = 1000):
     """Get followers of a specific user"""
-    followers = get_followers(user_id, skip, limit)
+    followers = get_followers(str(user_id), skip, limit)
     return followers
 
 
 @router.get("/{user_id}/following", response_model=List[FollowingResponse])
 def get_user_following(user_id: str, skip: int = 0, limit: int = 1000):
     """Get users that a specific user follows"""
-    following = get_following(user_id, skip, limit)
+    following = get_following(str(user_id), skip, limit)
     return following
 
 

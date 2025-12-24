@@ -2,8 +2,9 @@ import { axiosInstance } from '../lib/axios';
 
 // Follow a user
 export const followUser = async (userId) => {
+  // Always send following_id as string for MongoDB compatibility
   const response = await axiosInstance.post('/followers/follow', {
-    following_id: userId
+    following_id: String(userId)
   });
   return response.data;
 };
