@@ -10,8 +10,8 @@ def create_comment(comment_data, user_id):
     """Create a new comment"""
     comment_dict = comment_data.dict()
     comment_dict['user_id'] = user_id
-    comment_dict['likes_count'] = 0
-    comment_dict['dislikes_count'] = 0
+    # comment_dict['likes_count'] = 0
+    # comment_dict['dislikes_count'] = 0
     comment_dict['replies_count'] = 0
     comment_dict['is_edited'] = False
     comment_dict['is_pinned'] = False
@@ -34,6 +34,11 @@ def get_comment_by_id(comment_id):
     if comment:
         comment['id'] = str(comment['_id'])
         comment.pop('_id')
+        # Add user info
+        user = db['users'].find_one({'_id': ObjectId(comment['user_id'])}) if comment.get('user_id') else None
+        if user:
+            comment['username'] = user.get('username')
+            comment['user_profile_picture'] = user.get('profile_picture')
     return comment
 
 
@@ -50,6 +55,11 @@ def get_video_comments(video_id, skip=0, limit=50):
     for comment in comments:
         comment['id'] = str(comment['_id'])
         comment.pop('_id')
+        # Add user info
+        user = db['users'].find_one({'_id': ObjectId(comment['user_id'])}) if comment.get('user_id') else None
+        if user:
+            comment['username'] = user.get('username')
+            comment['user_profile_picture'] = user.get('profile_picture')
     return comments
 
 

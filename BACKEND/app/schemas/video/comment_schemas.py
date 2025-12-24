@@ -24,8 +24,6 @@ class CommentResponse(BaseModel):
     user_profile_picture: Optional[str] = None
     text: str
     parent_comment_id: Optional[int] = None
-    likes_count: int = 0
-    dislikes_count: int = 0
     replies_count: int = 0
     is_edited: bool = False
     is_pinned: bool = False

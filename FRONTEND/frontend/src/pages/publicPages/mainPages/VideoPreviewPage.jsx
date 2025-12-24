@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send, UserPlus, UserCheck } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import { getVideoById, incrementVideoView, getTrendingVideos } from "../../../api/publicAPI/videoApi";
 import { likeVideo, removeLike, getLikeStatus } from "../../../api/publicAPI/likeApi";
-import { createComment, getVideoComments } from "../../../api/publicAPI/commentApi";
+import { createComment, getVideoComments, updateComment, deleteComment } from "../../../api/publicAPI/commentApi";
 import { saveVideo, unsaveVideo, getSaveStatus } from "../../../api/publicAPI/savedVideoApi";
 import { followUser, unfollowUser, checkIsFollowing } from "../../../api/publicAPI/followerApi";
 import toast from "react-hot-toast";
@@ -29,8 +30,101 @@ const VideoPreviewPage = () => {
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [editingComment, setEditingComment] = useState(null);
+  const [editText, setEditText] = useState('');
+  const [deletingComment, setDeletingComment] = useState(null);
+  // Edit comment handler
+  const handleEditComment = (comment) => {
+    setEditingComment(comment);
+    setEditText(comment.text);
+  };
 
+  const handleEditCommentSubmit = async (e) => {
+    e.preventDefault();
+    if (!editingComment) return;
+    try {
+      await updateComment(editingComment.id, editText);
+      toast.success('Comment updated!');
+      setEditingComment(null);
+      setEditText('');
+      // Refresh comments
+      const data = await getVideoComments(id);
+      setComments(data.comments || []);
+    } catch {
+      toast.error('Could not update comment');
+    }
+  };
+
+  // Delete comment handler
+  const handleDeleteComment = (comment) => {
+    setDeletingComment(comment);
+  };
+
+  const confirmDeleteComment = async () => {
+    if (!deletingComment) return;
+    try {
+      await deleteComment(deletingComment.id);
+      toast.success('Comment deleted!');
+      setDeletingComment(null);
+      // Refresh comments
+      const data = await getVideoComments(id);
+      setComments(data.comments || []);
+      setVideo(prev => ({ ...prev, comments_count: Math.max(0, (prev?.comments_count || 1) - 1) }));
+    } catch {
+      toast.error('Could not delete comment');
+    }
+  };
+
+  const cancelDeleteComment = () => setDeletingComment(null);
   useEffect(() => {
+    const fetchVideo = async () => {
+      try {
+        setLoading(true);
+        const videoData = await getVideoById(id);
+        setVideo(videoData);
+        setLocalLikes(videoData.likes || 0);
+        setLocalDislikes(videoData.dislikes || 0);
+        await incrementVideoView(id).catch(() => {});
+      } catch {
+        toast.error('Video not found');
+        navigate('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchRelatedVideos = async () => {
+      try {
+        const data = await getTrendingVideos(8);
+        setRelatedVideos(data.videos || []);
+      } catch {
+        setRelatedVideos([]);
+      }
+    };
+    const fetchComments = async () => {
+      try {
+        const data = await getVideoComments(id);
+        setComments(data.comments || []);
+      } catch {
+        setComments([]);
+      }
+    };
+    const fetchLikeStatus = async () => {
+      try {
+        const data = await getLikeStatus(id);
+        setLikeStatus(data.like_type || null);
+      } catch {
+        setLikeStatus(null);
+      }
+    };
+    const fetchSaveStatus = async () => {
+      try {
+        const data = await getSaveStatus(id);
+        setIsSaved(data.saved || false);
+      } catch {
+        setIsSaved(false);
+      }
+    };
     if (id) {
       fetchVideo();
       fetchRelatedVideos();
@@ -40,9 +134,18 @@ const VideoPreviewPage = () => {
         fetchSaveStatus();
       }
     }
-  }, [id, isAuthenticated]);
+  }, [id, isAuthenticated, navigate]);
 
   useEffect(() => {
+    const fetchFollowStatus = async () => {
+      if (!video?.uploader_id) return;
+      try {
+        const data = await checkIsFollowing(video.uploader_id);
+        setIsFollowing(data.is_following || false);
+      } catch {
+        setIsFollowing(false);
+      }
+    };
     if (video && video.uploader_id && isAuthenticated && user) {
       if (video.uploader_id !== user.user_id) {
         fetchFollowStatus();
@@ -230,24 +333,21 @@ const VideoPreviewPage = () => {
 
   const handleSubmitComment = async (e) => {
     e.preventDefault();
-    
     if (!isAuthenticated) {
       toast.error('Please login to comment');
       return;
     }
-
     if (!commentText.trim()) {
       return;
     }
-
     try {
       setSubmittingComment(true);
       await createComment(id, commentText);
       setCommentText('');
       toast.success('Comment posted!');
-      
-      await fetchComments();
-      
+      // Re-fetch comments after posting
+      const data = await getVideoComments(id);
+      setComments(data.comments || []);
       setVideo(prev => ({
         ...prev,
         comments_count: (prev?.comments_count || 0) + 1
@@ -575,6 +675,185 @@ const VideoPreviewPage = () => {
               </div>
             </div>
           )}
+
+          {/* Comments (toggleable) */}
+          <div className="py-4 border-b border-border">
+            <button
+              onClick={() => setCommentsOpen((open) => !open)}
+              className="flex items-center gap-2 text-foreground font-medium mb-4"
+            >
+              Comments ({video.comments_count || 0})
+              {commentsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {commentsOpen && (
+              <>
+                {/* Comment Input */}
+                {isAuthenticated ? (
+                  <form onSubmit={handleSubmitComment} className="mb-6">
+                    <div className="flex gap-3">
+                      <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <textarea
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          placeholder="Add a comment..."
+                          className="w-full px-3 py-2 bg-secondary text-foreground rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                          rows="2"
+                        />
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setCommentText('')}
+                            className="px-4 py-1.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={submittingComment || !commentText.trim()}
+                            className="flex items-center gap-2 px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Send className="w-4 h-4" />
+                            {submittingComment ? 'Posting...' : 'Comment'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="mb-6 p-4 bg-secondary rounded-lg text-center">
+                    <p className="text-sm text-muted-foreground mb-2">Sign in to leave a comment</p>
+                    <Link to="/login" className="text-sm text-primary hover:underline">
+                      Login
+                    </Link>
+                  </div>
+                )}
+                {/* Comments List */}
+                {comments.length > 0 ? (
+                  <div className="space-y-4">
+                    {comments.map((comment) => {
+                      const isCurrentUser = user && (comment.user_id === user.user_id || comment.user_id === user.id);
+                      const profileLink = isCurrentUser ? "/profile" : `/user/${comment.user_id}`;
+                      return (
+                        <div key={comment.id} className="flex gap-3">
+                          <Link
+                            to={profileLink}
+                            className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden hover:scale-105 transition-transform"
+                          >
+                            {comment.user_profile_picture ? (
+                              <img src={comment.user_profile_picture} alt={comment.username || 'User'} className="w-full h-full object-cover" />
+                            ) : (
+                              <User className="w-4 h-4 text-primary" />
+                            )}
+                          </Link>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <Link
+                                to={profileLink}
+                                className="text-sm font-medium text-foreground hover:text-primary transition-colors block truncate"
+                              >
+                                {comment.username || 'User'}
+                              </Link>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(comment.created_at)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-foreground mt-1">{comment.text}</p>
+                            <div className="flex items-center gap-3 mt-2">
+                              <button className="text-xs text-muted-foreground hover:text-foreground">
+                                Reply
+                              </button>
+                              {isCurrentUser && (
+                                <>
+                                  <button
+                                    className="text-xs px-2 py-1 rounded bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 transition-colors font-medium"
+                                    onClick={() => handleEditComment(comment)}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="text-xs px-2 py-1 rounded bg-destructive/10 text-destructive border border-destructive/30 hover:bg-destructive/20 transition-colors font-medium"
+                                    onClick={() => handleDeleteComment(comment)}
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                                  {/* Edit Comment Modal */}
+                                  {editingComment && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                      <div className="bg-card rounded-lg shadow-lg p-6 w-full max-w-md border border-border">
+                                        <h3 className="font-semibold text-lg mb-4 text-foreground">Edit Comment</h3>
+                                        <form onSubmit={handleEditCommentSubmit}>
+                                          <textarea
+                                            value={editText}
+                                            onChange={e => setEditText(e.target.value)}
+                                            className="w-full px-3 py-2 bg-secondary text-foreground rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary resize-none mb-4"
+                                            rows="3"
+                                            autoFocus
+                                          />
+                                          <div className="flex justify-end gap-2">
+                                            <button
+                                              type="button"
+                                              onClick={() => setEditingComment(null)}
+                                              className="px-4 py-1.5 text-sm text-foreground bg-secondary rounded-lg border border-border hover:bg-secondary/80 transition-colors"
+                                            >
+                                              Cancel
+                                            </button>
+                                            <button
+                                              type="submit"
+                                              disabled={!editText.trim()}
+                                              className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                              Save
+                                            </button>
+                                          </div>
+                                        </form>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Delete Comment Confirmation Modal */}
+                                  {deletingComment && (
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                                      <div className="bg-card rounded-lg shadow-lg p-6 w-full max-w-sm border border-border">
+                                        <h3 className="font-semibold text-lg mb-4 text-foreground">Delete Comment</h3>
+                                        <p className="mb-6 text-foreground">Are you sure you want to delete this comment?</p>
+                                        <div className="flex justify-end gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={cancelDeleteComment}
+                                            className="px-4 py-1.5 text-sm text-foreground bg-secondary rounded-lg border border-border hover:bg-secondary/80 transition-colors"
+                                          >
+                                            Cancel
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={confirmDeleteComment}
+                                            className="px-4 py-1.5 text-sm bg-destructive text-destructive-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+                                          >
+                                            Delete
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No comments yet. Be the first to comment!
+                  </p>
+                )}
+              </>
+            )}
+          </div>
 
           {/* Recommended Videos */}
           {relatedVideos.length > 0 && (
