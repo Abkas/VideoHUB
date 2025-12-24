@@ -140,3 +140,113 @@ def increment_video_view(video_id):
         {'$inc': {'views': 1}}
     )
     return result.modified_count > 0
+
+
+def get_hot_videos(limit=20):
+    """Get hot videos (high engagement - likes, comments, shares)"""
+    # Calculate engagement score: likes + comments*2 + shares*3
+    videos = list(db['videos'].aggregate([
+        {'$match': {'status': 'published'}},
+        {'$addFields': {
+            'engagement_score': {
+                '$add': [
+                    {'$ifNull': ['$likes', 0]},
+                    {'$multiply': [{'$ifNull': ['$comments_count', 0]}, 2]},
+                    {'$multiply': [{'$ifNull': ['$shares_count', 0]}, 3]}
+                ]
+            }
+        }},
+        {'$sort': {'engagement_score': -1}},
+        {'$limit': limit}
+    ]))
+    
+    for video in videos:
+        video['id'] = str(video['_id'])
+        video.pop('_id')
+    return videos
+
+
+def get_videos_from_following(user_id, limit=20):
+    """Get videos from users that current user follows"""
+    # Get list of following user IDs
+    following = list(db['followers'].find(
+        {'follower_id': user_id, 'status': 'active'},
+        {'following_id': 1}
+    ))
+    following_ids = [f['following_id'] for f in following]
+    
+    if not following_ids:
+        return []
+    
+    # Get videos from those users
+    videos = list(db['videos'].find({
+        'uploader_id': {'$in': following_ids},
+        'status': 'published'
+    })
+    .sort('created_at', -1)
+    .limit(limit))
+    
+    for video in videos:
+        video['id'] = str(video['_id'])
+        video.pop('_id')
+    return videos
+
+
+def get_recommended_videos(user_id=None, limit=20):
+    """Get recommended videos based on user's watch history and preferences"""
+    if not user_id:
+        # Return featured or trending videos for non-authenticated users
+        return get_trending_videos(limit)
+    
+    # Get user's watch history to find categories/tags they like
+    watch_history = list(db['watch_history'].find(
+        {'user_id': user_id}
+    ).sort('watched_at', -1).limit(50))
+    
+    if not watch_history:
+        return get_trending_videos(limit)
+    
+    # Get video IDs from history
+    watched_video_ids = [ObjectId(wh['video_id']) for wh in watch_history]
+    
+    # Get categories and tags from watched videos
+    watched_videos = list(db['videos'].find(
+        {'_id': {'$in': watched_video_ids}},
+        {'categories': 1, 'tags': 1}
+    ))
+    
+    # Collect all categories and tags
+    categories = set()
+    tags = set()
+    for video in watched_videos:
+        if 'categories' in video:
+            if isinstance(video['categories'], list):
+                categories.update(video['categories'])
+            else:
+                categories.add(video['categories'])
+        if 'tags' in video:
+            tags.update(video.get('tags', []))
+    
+    # Find similar videos (not already watched)
+    query = {
+        'status': 'published',
+        '_id': {'$nin': watched_video_ids}
+    }
+    
+    if categories or tags:
+        query['$or'] = []
+        if categories:
+            query['$or'].append({'categories': {'$in': list(categories)}})
+        if tags:
+            query['$or'].append({'tags': {'$in': list(tags)}})
+    
+    # Prioritize by views and recency
+    videos = list(db['videos'].find(query)
+                 .sort([('views', -1), ('created_at', -1)])
+                 .limit(limit))
+    
+    for video in videos:
+        video['id'] = str(video['_id'])
+        video.pop('_id')
+    
+    return videos

@@ -24,7 +24,7 @@ def follow_user_route(follow_data: FollowCreate, current_user: dict = Depends(ge
 
 
 @router.delete("/unfollow/{following_id}")
-def unfollow_user_route(following_id: int, current_user: dict = Depends(get_current_user)):
+def unfollow_user_route(following_id: str, current_user: dict = Depends(get_current_user)):
     """Unfollow a user"""
     success = unfollow_user(current_user['user_id'], following_id)
     if not success:
@@ -47,28 +47,28 @@ def get_my_following(skip: int = 0, limit: int = 1000, current_user: dict = Depe
 
 
 @router.get("/{user_id}/followers", response_model=List[FollowerResponse])
-def get_user_followers(user_id: int, skip: int = 0, limit: int = 1000):
+def get_user_followers(user_id: str, skip: int = 0, limit: int = 1000):
     """Get followers of a specific user"""
     followers = get_followers(user_id, skip, limit)
     return followers
 
 
 @router.get("/{user_id}/following", response_model=List[FollowingResponse])
-def get_user_following(user_id: int, skip: int = 0, limit: int = 1000):
+def get_user_following(user_id: str, skip: int = 0, limit: int = 1000):
     """Get users that a specific user follows"""
     following = get_following(user_id, skip, limit)
     return following
 
 
 @router.get("/is-following/{user_id}")
-def check_is_following(user_id: int, current_user: dict = Depends(get_current_user)):
+def check_is_following(user_id: str, current_user: dict = Depends(get_current_user)):
     """Check if current user follows a specific user"""
     following = is_following(current_user['user_id'], user_id)
     return {"is_following": following}
 
 
 @router.get("/stats/{user_id}")
-def get_follower_stats(user_id: int):
+def get_follower_stats(user_id: str):
     """Get follower statistics for a user"""
     followers_count = get_follower_count(user_id)
     following_count = get_following_count(user_id)
@@ -80,7 +80,7 @@ def get_follower_stats(user_id: int):
 
 @router.put("/settings/{following_id}")
 def update_follow_notification_settings(
-    following_id: int,
+    following_id: str,
     update_data: FollowUpdate,
     current_user: dict = Depends(get_current_user)
 ):

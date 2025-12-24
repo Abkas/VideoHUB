@@ -5,7 +5,7 @@ from datetime import datetime
 
 # Comment Create
 class CommentCreate(BaseModel):
-    video_id: int
+    video_id: str
     text: str = Field(..., min_length=1, max_length=5000)
     parent_comment_id: Optional[int] = None
 

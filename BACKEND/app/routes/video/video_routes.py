@@ -7,6 +7,9 @@ from app.services.video.video_services import (
     get_all_videos,
     get_trending_videos,
     get_featured_videos,
+    get_hot_videos,
+    get_videos_from_following,
+    get_recommended_videos,
     get_videos_by_user,
     update_video,
     delete_video,
@@ -49,6 +52,27 @@ def get_trending_videos_list(limit: int = 20):
 def get_featured_videos_list(limit: int = 20):
     """Get featured videos"""
     videos = get_featured_videos(limit)
+    return {"videos": videos, "count": len(videos)}
+
+
+@router.get("/hot")
+def get_hot_videos_list(limit: int = 20):
+    """Get hot videos (high engagement)"""
+    videos = get_hot_videos(limit)
+    return {"videos": videos, "count": len(videos)}
+
+
+@router.get("/following")
+def get_following_videos_list(limit: int = 20, current_user: dict = Depends(get_current_user)):
+    """Get videos from users you follow"""
+    videos = get_videos_from_following(current_user['user_id'], limit)
+    return {"videos": videos, "count": len(videos)}
+
+
+@router.get("/recommended")
+def get_recommended_videos_list(limit: int = 20, current_user: dict = Depends(get_current_user)):
+    """Get recommended videos based on watch history"""
+    videos = get_recommended_videos(current_user['user_id'], limit)
     return {"videos": videos, "count": len(videos)}
 
 

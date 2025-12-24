@@ -1,31 +1,65 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut } from "lucide-react";
+import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, TrendingUp, Flame, Users, Sparkles } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
-
-const mockVideos = [
-  { id: 1, title: "Amazing sunset timelapse over the ocean waves", duration: "12:34", views: "1.2M" },
-  { id: 2, title: "Urban exploration documentary part one", duration: "8:45", views: "856K" },
-  { id: 3, title: "Cooking masterclass with professional chef", duration: "15:20", views: "2.1M" },
-  { id: 4, title: "Travel vlog exploring hidden gems", duration: "10:11", views: "543K" },
-  { id: 5, title: "Music production tutorial for beginners", duration: "22:30", views: "1.8M" },
-  { id: 6, title: "Fitness workout routine at home", duration: "18:45", views: "3.2M" },
-  { id: 7, title: "Nature documentary wildlife adventure", duration: "25:10", views: "987K" },
-  { id: 8, title: "Tech review latest smartphone comparison", duration: "14:22", views: "2.5M" },
-  { id: 9, title: "Art tutorial watercolor painting basics", duration: "11:55", views: "654K" },
-  { id: 10, title: "Gaming highlights epic moments compilation", duration: "9:30", views: "4.1M" },
-  { id: 11, title: "Dance choreography tutorial step by step", duration: "7:45", views: "1.5M" },
-  { id: 12, title: "Photography tips for stunning portraits", duration: "13:20", views: "892K" },
-];
-
-const categories = [
-  "All", "Trending", "New", "Popular", "Featured", "Documentary", "Music", "Sports", "Gaming", "Lifestyle"
-];
+import VideoSection from "../../../components/VideoSection";
+import { 
+  getTrendingVideos, 
+  getHotVideos, 
+  getFollowingVideos, 
+  getRecommendedVideos 
+} from "../../../api/publicAPI/videoApi";
+import toast from "react-hot-toast";
 
 const HomePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState("All");
   const { isAuthenticated, logout, user } = useAuthorizer();
+  
+  // Video sections state
+  const [trendingVideos, setTrendingVideos] = useState([]);
+  const [hotVideos, setHotVideos] = useState([]);
+  const [followingVideos, setFollowingVideos] = useState([]);
+  const [recommendedVideos, setRecommendedVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAllVideos();
+  }, [isAuthenticated]);
+
+  const fetchAllVideos = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch trending and hot for all users
+      const [trending, hot] = await Promise.all([
+        getTrendingVideos(10),
+        getHotVideos(10)
+      ]);
+      
+      setTrendingVideos(trending.videos || []);
+      setHotVideos(hot.videos || []);
+      
+      // Fetch following and recommended only for authenticated users
+      if (isAuthenticated) {
+        try {
+          const [following, recommended] = await Promise.all([
+            getFollowingVideos(10),
+            getRecommendedVideos(10)
+          ]);
+          setFollowingVideos(following.videos || []);
+          setRecommendedVideos(recommended.videos || []);
+        } catch (error) {
+          console.log('Error fetching personalized videos:', error);
+          // Don't show error toast for auth-required endpoints
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching videos:', error);
+      toast.error('Failed to load videos');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -143,49 +177,84 @@ const HomePage = () => {
         </div>
       )}
 
-      {/* Category Chips */}
-      <div className="sticky top-14 z-40 bg-background border-b border-border">
-        <div className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4">
-          <div className="flex gap-2 py-3 overflow-x-auto scrollbar-hide">
-            {categories.map((category) => (
-              <button
-                key={category}
-                onClick={() => setActiveCategory(category)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  activeCategory === category
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-muted"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+      {/* Main Content */}
+      <main className="max-w-[1400px] mx-auto px-3 sm:px-4 md:px-6 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
           </div>
-        </div>
-      </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Trending Section */}
+            {trendingVideos.length > 0 && (
+              <VideoSection 
+                title={
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <span>Trending Now</span>
+                  </div>
+                }
+                videos={trendingVideos}
+                showViewAll={true}
+                viewAllLink="/browse?filter=trending"
+              />
+            )}
 
-      {/* Video Grid */}
-      <main className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4 py-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-          {mockVideos.map((video) => (
-            <Link key={video.id} to={`/watch/${video.id}`} className="group">
-              <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
-                  <span className="text-muted-foreground text-xs">Thumbnail</span>
-                </div>
-                <div className="absolute bottom-1 right-1 bg-background/90 text-foreground text-xs px-1.5 py-0.5 rounded font-medium">
-                  {video.duration}
-                </div>
+            {/* Following Section (Authenticated Users Only) */}
+            {isAuthenticated && followingVideos.length > 0 && (
+              <VideoSection 
+                title={
+                  <div className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-500" />
+                    <span>From Your Following</span>
+                  </div>
+                }
+                videos={followingVideos}
+                showViewAll={true}
+                viewAllLink="/browse?filter=following"
+              />
+            )}
+
+            {/* Hot Section */}
+            {hotVideos.length > 0 && (
+              <VideoSection 
+                title={
+                  <div className="flex items-center gap-2">
+                    <Flame className="w-5 h-5 text-orange-500" />
+                    <span>Hot Right Now</span>
+                  </div>
+                }
+                videos={hotVideos}
+                showViewAll={true}
+                viewAllLink="/browse?filter=hot"
+              />
+            )}
+
+            {/* Recommended Section (Authenticated Users Only) */}
+            {isAuthenticated && recommendedVideos.length > 0 && (
+              <VideoSection 
+                title={
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-purple-500" />
+                    <span>Recommended For You</span>
+                  </div>
+                }
+                videos={recommendedVideos}
+                showViewAll={true}
+                viewAllLink="/browse?filter=recommended"
+              />
+            )}
+
+            {/* Empty State */}
+            {!loading && trendingVideos.length === 0 && hotVideos.length === 0 && (
+              <div className="text-center py-20">
+                <Grid className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">No videos available</h3>
+                <p className="text-muted-foreground">Check back later for new content</p>
               </div>
-              <div className="mt-2">
-                <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                  {video.title}
-                </h3>
-                <p className="text-xs text-muted-foreground mt-1">{video.views} views</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

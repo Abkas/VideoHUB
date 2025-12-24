@@ -1,28 +1,283 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, ChevronDown, ChevronUp } from "lucide-react";
-
-const mockComments = [
-  { id: 1, user: "JohnDoe", text: "Great video! Really enjoyed this content.", time: "2 hours ago" },
-  { id: 2, user: "JaneSmith", text: "Amazing quality, thanks for sharing!", time: "5 hours ago" },
-  { id: 3, user: "VideoFan99", text: "Can't wait for the next one!", time: "1 day ago" },
-];
-
-const relatedVideos = [
-  { id: 2, title: "Urban exploration documentary part one", duration: "8:45", views: "856K" },
-  { id: 3, title: "Cooking masterclass with professional chef", duration: "15:20", views: "2.1M" },
-  { id: 4, title: "Travel vlog exploring hidden gems", duration: "10:11", views: "543K" },
-  { id: 5, title: "Music production tutorial for beginners", duration: "22:30", views: "1.8M" },
-  { id: 6, title: "Fitness workout routine at home", duration: "18:45", views: "3.2M" },
-  { id: 7, title: "Nature documentary wildlife adventure", duration: "25:10", views: "987K" },
-  { id: 8, title: "Tech review latest smartphone comparison", duration: "14:22", views: "2.5M" },
-  { id: 9, title: "Art tutorial watercolor painting basics", duration: "11:55", views: "654K" },
-];
+import { useState, useEffect } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
+import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send, UserPlus, UserCheck } from "lucide-react";
+import { useAuthorizer } from "../../../Auth/Authorizer";
+import { getVideoById, incrementVideoView, getTrendingVideos } from "../../../api/publicAPI/videoApi";
+import { likeVideo, removeLike, getLikeStatus } from "../../../api/publicAPI/likeApi";
+import { createComment, getVideoComments } from "../../../api/publicAPI/commentApi";
+import { saveVideo, unsaveVideo, getSaveStatus } from "../../../api/publicAPI/savedVideoApi";
+import { followUser, unfollowUser, checkIsFollowing } from "../../../api/publicAPI/followerApi";
+import toast from "react-hot-toast";
 
 const VideoPreviewPage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthenticated, logout, user } = useAuthorizer();
   const [menuOpen, setMenuOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
+  const [video, setVideo] = useState(null);
+  const [relatedVideos, setRelatedVideos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  // Interactive features state
+  const [likeStatus, setLikeStatus] = useState(null); // null, 'like', or 'dislike'
+  const [isSaved, setIsSaved] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [localLikes, setLocalLikes] = useState(0);
+  const [localDislikes, setLocalDislikes] = useState(0);
+  const [comments, setComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchVideo();
+      fetchRelatedVideos();
+      fetchComments();
+      if (isAuthenticated) {
+        fetchLikeStatus();
+        fetchSaveStatus();
+      }
+    }
+  }, [id, isAuthenticated]);
+
+  useEffect(() => {
+    if (video && video.uploader_id && isAuthenticated && user) {
+      if (video.uploader_id !== user.user_id) {
+        fetchFollowStatus();
+      }
+    }
+  }, [video, isAuthenticated, user]);
+
+  const fetchVideo = async () => {
+    try {
+      setLoading(true);
+      const videoData = await getVideoById(id);
+      setVideo(videoData);
+      setLocalLikes(videoData.likes || 0);
+      setLocalDislikes(videoData.dislikes || 0);
+      
+      // Increment view count
+      await incrementVideoView(id).catch(() => {});
+    } catch {
+      toast.error('Video not found');
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRelatedVideos = async () => {
+    try {
+      const data = await getTrendingVideos(8);
+      setRelatedVideos(data.videos || []);
+    } catch {
+      setRelatedVideos([]);
+    }
+  };
+
+  const fetchComments = async () => {
+    try {
+      const data = await getVideoComments(id);
+      setComments(data.comments || []);
+    } catch {
+      setComments([]);
+    }
+  };
+
+  const fetchLikeStatus = async () => {
+    try {
+      const data = await getLikeStatus(id);
+      setLikeStatus(data.like_type || null);
+    } catch {
+      // User not authenticated or error fetching
+      setLikeStatus(null);
+    }
+  };
+
+  const fetchSaveStatus = async () => {
+    try {
+      const data = await getSaveStatus(id);
+      setIsSaved(data.saved || false);
+    } catch {
+      // User not authenticated or error fetching
+      setIsSaved(false);
+    }
+  };
+
+  const fetchFollowStatus = async () => {
+    if (!video?.uploader_id) return;
+    
+    try {
+      const data = await checkIsFollowing(video.uploader_id);
+      setIsFollowing(data.is_following || false);
+    } catch {
+      setIsFollowing(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to follow creators');
+      return;
+    }
+
+    if (!video?.uploader_id) return;
+
+    try {
+      if (isFollowing) {
+        await unfollowUser(video.uploader_id);
+        setIsFollowing(false);
+        toast.success('Unfollowed');
+      } else {
+        await followUser(video.uploader_id);
+        setIsFollowing(true);
+        toast.success('Following!');
+      }
+    } catch {
+      toast.error('Could not update follow status');
+    }
+  };
+
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to like videos');
+      return;
+    }
+
+    try {
+      if (likeStatus === 'like') {
+        await removeLike(id);
+        setLikeStatus(null);
+        setLocalLikes(prev => Math.max(0, prev - 1));
+      } else {
+        if (likeStatus === 'dislike') {
+          setLocalDislikes(prev => Math.max(0, prev - 1));
+        }
+        await likeVideo(id, 'like');
+        setLikeStatus('like');
+        setLocalLikes(prev => prev + 1);
+      }
+    } catch {
+      toast.error('Could not update like');
+    }
+  };
+
+  const handleDislike = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to dislike videos');
+      return;
+    }
+
+    try {
+      if (likeStatus === 'dislike') {
+        await removeLike(id);
+        setLikeStatus(null);
+        setLocalDislikes(prev => Math.max(0, prev - 1));
+      } else {
+        if (likeStatus === 'like') {
+          setLocalLikes(prev => Math.max(0, prev - 1));
+        }
+        await likeVideo(id, 'dislike');
+        setLikeStatus('dislike');
+        setLocalDislikes(prev => prev + 1);
+      }
+    } catch {
+      toast.error('Could not update dislike');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!isAuthenticated) {
+      toast.error('Please login to save videos');
+      return;
+    }
+
+    try {
+      if (isSaved) {
+        await unsaveVideo(id);
+        setIsSaved(false);
+        toast.success('Removed from saved');
+      } else {
+        await saveVideo(id);
+        setIsSaved(true);
+        toast.success('Video saved!');
+      }
+    } catch {
+      toast.error('Could not update saved status');
+    }
+  };
+
+  const handleShare = () => {
+    setShowShareModal(true);
+  };
+
+  const copyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    toast.success('Link copied to clipboard!');
+    setShowShareModal(false);
+  };
+
+  const handleSubmitComment = async (e) => {
+    e.preventDefault();
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to comment');
+      return;
+    }
+
+    if (!commentText.trim()) {
+      return;
+    }
+
+    try {
+      setSubmittingComment(true);
+      await createComment(id, commentText);
+      setCommentText('');
+      toast.success('Comment posted!');
+      
+      await fetchComments();
+      
+      setVideo(prev => ({
+        ...prev,
+        comments_count: (prev?.comments_count || 0) + 1
+      }));
+    } catch {
+      toast.error('Could not post comment');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const formatViews = (views) => {
+    if (views >= 1000000) return `${(views / 1000000).toFixed(1)}M`;
+    if (views >= 1000) return `${(views / 1000).toFixed(1)}K`;
+    return views?.toString() || '0';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Recently';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now - date;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+    if (days < 365) return `${Math.floor(days / 30)} months ago`;
+    return `${Math.floor(days / 365)} years ago`;
+  };
+
+  const formatDuration = (seconds) => {
+    if (!seconds) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -101,115 +356,390 @@ const VideoPreviewPage = () => {
                 <span>Privacy Policy</span>
               </Link>
               <div className="my-2 border-t border-border" />
-              <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-secondary rounded-lg transition-colors">
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </Link>
+              {isAuthenticated ? (
+                <button 
+                  onClick={() => {
+                    logout();
+                    setMenuOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-destructive hover:bg-secondary rounded-lg transition-colors"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-primary hover:bg-secondary rounded-lg transition-colors">
+                  <User className="w-5 h-5" />
+                  <span>Login</span>
+                </Link>
+              )}
             </nav>
           </div>
         </div>
       )}
 
-      <main className="max-w-[1280px] mx-auto">
-        {/* Video Player */}
-        <div className="aspect-video bg-card flex items-center justify-center">
-          <span className="text-muted-foreground">Video Player</span>
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-
-        <div className="px-2 sm:px-3 md:px-4 py-4">
-          {/* Video Title */}
-          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
-            Amazing sunset timelapse over the ocean waves - Full Documentary
-          </h1>
-
-          {/* Views & Date */}
-          <p className="text-sm text-muted-foreground mt-1">
-            1.2M views • Uploaded 3 days ago
-          </p>
-
-          {/* Action Row */}
-          <div className="flex items-center gap-4 mt-4 py-3 border-y border-border">
-            <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-              <ThumbsUp className="w-5 h-5" />
-              <span className="text-sm">12K</span>
-            </button>
-            <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-              <ThumbsDown className="w-5 h-5" />
-              <span className="text-sm">245</span>
-            </button>
-            <button className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
-              <Bookmark className="w-5 h-5" />
-              <span className="text-sm">Save</span>
-            </button>
-            <Link to="/report" className="ml-auto text-sm text-muted-foreground hover:text-primary transition-colors">
-              Report
-            </Link>
-          </div>
-
-          {/* Description */}
-          <div className="py-4 border-b border-border">
-            <button
-              onClick={() => setDescriptionOpen(!descriptionOpen)}
-              className="flex items-center gap-2 text-foreground font-medium"
-            >
-              Description
-              {descriptionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-            {descriptionOpen && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                This is a beautiful timelapse video capturing the stunning sunset over the ocean. 
-                The video was shot over multiple days to capture the perfect moment. 
-                We used professional equipment and techniques to bring you this amazing visual experience.
-                Don't forget to like and subscribe for more content like this!
-              </p>
+      ) : video ? (
+        <main className="max-w-[1280px] mx-auto">
+          {/* Video Player */}
+          <div className="aspect-video bg-black">
+            {video.video_url ? (
+              <video
+                className="w-full h-full"
+                controls
+                autoPlay
+                poster={video.thumbnail_url}
+              >
+                <source src={video.video_url} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <Play className="w-16 h-16 text-muted-foreground" />
+              </div>
             )}
           </div>
 
-          {/* Comments */}
-          <div className="py-4 border-b border-border">
-            <h2 className="font-medium text-foreground mb-4">Comments ({mockComments.length})</h2>
-            <div className="space-y-4">
-              {mockComments.map((comment) => (
-                <div key={comment.id} className="flex gap-3">
-                  <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0" />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{comment.user}</span>
-                      <span className="text-xs text-muted-foreground">{comment.time}</span>
-                    </div>
-                    <p className="text-sm text-foreground mt-1">{comment.text}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <div className="px-2 sm:px-3 md:px-4 py-4">
+            {/* Video Title */}
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+              {video.title}
+            </h1>
 
-          {/* Related Videos */}
-          <div className="py-4">
-            <h2 className="font-medium text-foreground mb-4">Related Videos</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-              {relatedVideos.map((video) => (
-                <Link key={video.id} to={`/watch/${video.id}`} className="group">
-                  <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
-                      <span className="text-muted-foreground text-xs">Thumbnail</span>
-                    </div>
-                    <div className="absolute bottom-1 right-1 bg-background/90 text-foreground text-xs px-1.5 py-0.5 rounded font-medium">
-                      {video.duration}
+            {/* Views & Date */}
+            <p className="text-sm text-muted-foreground mt-1">
+              {formatViews(video.views)} views • {formatDate(video.created_at || video.published_at)}
+            </p>
+
+            {/* Action Row */}
+            <div className="flex items-center gap-4 mt-4 py-3 border-y border-border">
+              <button 
+                onClick={handleLike}
+                className={`flex items-center gap-2 transition-colors ${
+                  likeStatus === 'like' 
+                    ? 'text-primary' 
+                    : 'text-foreground hover:text-primary'
+                }`}
+              >
+                <ThumbsUp className={`w-5 h-5 ${likeStatus === 'like' ? 'fill-current' : ''}`} />
+                <span className="text-sm">{formatViews(localLikes)}</span>
+              </button>
+              <button 
+                onClick={handleDislike}
+                className={`flex items-center gap-2 transition-colors ${
+                  likeStatus === 'dislike' 
+                    ? 'text-destructive' 
+                    : 'text-foreground hover:text-destructive'
+                }`}
+              >
+                <ThumbsDown className={`w-5 h-5 ${likeStatus === 'dislike' ? 'fill-current' : ''}`} />
+                <span className="text-sm">{formatViews(localDislikes)}</span>
+              </button>
+              <button 
+                onClick={handleSave}
+                className={`flex items-center gap-2 transition-colors ${
+                  isSaved 
+                    ? 'text-primary' 
+                    : 'text-foreground hover:text-primary'
+                }`}
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="w-5 h-5 fill-current" />
+                ) : (
+                  <Bookmark className="w-5 h-5" />
+                )}
+                <span className="text-sm">{isSaved ? 'Saved' : 'Save'}</span>
+              </button>
+              <button 
+                onClick={handleShare}
+                className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+              >
+                <Share2 className="w-5 h-5" />
+                <span className="text-sm">Share</span>
+              </button>
+              <Link to="/report" className="ml-auto text-sm text-muted-foreground hover:text-primary transition-colors">
+                Report
+              </Link>
+            </div>
+
+            {/* Uploader Info */}
+            {video.uploader_username && (
+              <div className="py-4 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Link 
+                      to={`/user/${video.uploader_id}`}
+                      className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0"
+                    >
+                      <User className="w-6 h-6 text-primary" />
+                    </Link>
+                    <div className="flex-1 min-w-0">
+                      <Link 
+                        to={`/user/${video.uploader_id}`}
+                        className="font-semibold text-foreground hover:text-primary transition-colors block truncate"
+                      >
+                        {video.uploader_username}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">
+                        {video.uploader_followers_count ? `${video.uploader_followers_count} followers` : 'Content Creator'}
+                      </p>
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                      {video.title}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">{video.views} views</p>
+                  
+                  {isAuthenticated && user && video.uploader_id !== user.user_id && (
+                    <button
+                      onClick={handleFollow}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all flex-shrink-0 ${
+                        isFollowing
+                          ? 'bg-secondary text-foreground hover:bg-secondary/80'
+                          : 'bg-primary text-primary-foreground hover:opacity-90'
+                      }`}
+                    >
+                      {isFollowing ? (
+                        <>
+                          <UserCheck className="w-4 h-4" />
+                          <span>Following</span>
+                        </>
+                      ) : (
+                        <>
+                          <UserPlus className="w-4 h-4" />
+                          <span>Follow</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+                
+                {video.tags && video.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {video.tags.slice(0, 5).map((tag, idx) => (
+                      <span key={idx} className="text-xs bg-secondary text-foreground px-2 py-1 rounded hover:bg-secondary/80 transition-colors">
+                        #{tag}
+                      </span>
+                    ))}
                   </div>
-                </Link>
-              ))}
+                )}
+              </div>
+            )}
+
+            {/* Description */}
+            {video.description && (
+              <div className="py-4 border-b border-border">
+                <button
+                  onClick={() => setDescriptionOpen(!descriptionOpen)}
+                  className="flex items-center gap-2 text-foreground font-medium"
+                >
+                  Description
+                  {descriptionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {descriptionOpen && (
+                  <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {video.description}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Comments */}
+            <div className="py-4 border-b border-border">
+              <h2 className="font-medium text-foreground mb-4">Comments ({video.comments_count || 0})</h2>
+              
+              {/* Comment Input */}
+              {isAuthenticated ? (
+                <form onSubmit={handleSubmitComment} className="mb-6">
+                  <div className="flex gap-3">
+                    <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="w-full px-3 py-2 bg-secondary text-foreground rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                        rows="2"
+                      />
+                      <div className="flex justify-end gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setCommentText('')}
+                          className="px-4 py-1.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingComment || !commentText.trim()}
+                          className="flex items-center gap-2 px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send className="w-4 h-4" />
+                          {submittingComment ? 'Posting...' : 'Comment'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="mb-6 p-4 bg-secondary rounded-lg text-center">
+                  <p className="text-sm text-muted-foreground mb-2">Sign in to leave a comment</p>
+                  <Link to="/login" className="text-sm text-primary hover:underline">
+                    Login
+                  </Link>
+                </div>
+              )}
+              
+              {/* Comments List */}
+              {comments.length > 0 ? (
+                <div className="space-y-4">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-3">
+                      <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center">
+                        <User className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-foreground">
+                            {comment.username || 'User'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(comment.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-sm text-foreground mt-1">{comment.text}</p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <button className="text-xs text-muted-foreground hover:text-foreground">
+                            <ThumbsUp className="w-3 h-3 inline mr-1" />
+                            {comment.likes_count || 0}
+                          </button>
+                          <button className="text-xs text-muted-foreground hover:text-foreground">
+                            Reply
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No comments yet. Be the first to comment!
+                </p>
+              )}
+            </div>
+
+            {/* Related Videos */}
+            {relatedVideos.length > 0 && (
+              <div className="py-4">
+                <h2 className="font-medium text-foreground mb-4">Related Videos</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                  {relatedVideos.map((relatedVideo) => (
+                    <Link key={relatedVideo.id} to={`/watch/${relatedVideo.id}`} className="group">
+                      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                        {relatedVideo.thumbnail_url ? (
+                          <img 
+                            src={relatedVideo.thumbnail_url} 
+                            alt={relatedVideo.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
+                            <Play className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                          {formatDuration(relatedVideo.duration)}
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                          {relatedVideo.title}
+                        </h3>
+                        <p className="text-xs text-muted-foreground mt-1">{formatViews(relatedVideo.views)} views</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      ) : (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-foreground mb-2">Video not found</h2>
+            <Link to="/" className="text-primary hover:underline">Go back home</Link>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div 
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowShareModal(false)}
+          />
+          <div className="relative bg-card rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">Share Video</h3>
+              <button 
+                onClick={() => setShowShareModal(false)}
+                className="p-1 hover:bg-secondary rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              <button
+                onClick={copyLink}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-secondary hover:bg-muted rounded-lg transition-colors"
+              >
+                <Share2 className="w-5 h-5 text-foreground" />
+                <span className="text-foreground">Copy Link</span>
+              </button>
+              
+              <a
+                href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(video?.title || 'Check out this video!')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-secondary hover:bg-muted rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                </svg>
+                <span className="text-foreground">Share on Twitter</span>
+              </a>
+              
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-secondary hover:bg-muted rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                <span className="text-foreground">Share on Facebook</span>
+              </a>
+              
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent((video?.title || 'Check out this video!') + ' ' + window.location.href)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3 bg-secondary hover:bg-muted rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                </svg>
+                <span className="text-foreground">Share on WhatsApp</span>
+              </a>
             </div>
           </div>
         </div>
-      </main>
+      )}
     </div>
   );
 };

@@ -23,7 +23,7 @@ def create_new_comment(comment_data: CommentCreate, current_user: dict = Depends
 
 
 @router.get("/video/{video_id}")
-def get_comments_for_video(video_id: int, skip: int = 0, limit: int = 50):
+def get_comments_for_video(video_id: str, skip: int = 0, limit: int = 50):
     """Get all comments for a video"""
     comments = get_video_comments(video_id, skip, limit)
     return {"comments": comments, "count": len(comments)}

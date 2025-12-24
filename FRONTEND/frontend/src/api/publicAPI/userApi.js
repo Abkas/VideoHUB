@@ -77,3 +77,30 @@ export async function verifyToken() {
     }
   }
 }
+
+// Upload avatar
+export async function uploadAvatar(file) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await axiosInstance.post('/users/me/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to upload avatar');
+  }
+}
+
+// Delete avatar
+export async function deleteAvatar() {
+  try {
+    const response = await axiosInstance.delete('/users/me/avatar');
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || 'Failed to delete avatar');
+  }
+}

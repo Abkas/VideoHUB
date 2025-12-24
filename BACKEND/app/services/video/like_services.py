@@ -120,7 +120,7 @@ def get_video_likes(video_id, skip=0, limit=100):
 
 
 def get_user_liked_videos(user_id, skip=0, limit=20):
-    """Get videos liked by user"""
+    """Get videos liked by user with video details"""
     likes = list(db['likes'].find({
         'user_id': user_id,
         'like_type': 'like'
@@ -129,8 +129,54 @@ def get_user_liked_videos(user_id, skip=0, limit=20):
     .skip(skip)
     .limit(limit))
     
-    video_ids = [like.get('video_id') for like in likes]
-    return video_ids
+    if not likes:
+        return []
+    
+    # Get video IDs
+    video_ids = []
+    for like in likes:
+        try:
+            video_id = like.get('video_id')
+            if ObjectId.is_valid(video_id):
+                video_ids.append(ObjectId(video_id))
+        except:
+            pass
+    
+    if not video_ids:
+        return []
+    
+    # Fetch video details
+    videos = list(db['videos'].find(
+        {'_id': {'$in': video_ids}},
+        {
+            '_id': 1,
+            'title': 1,
+            'description': 1,
+            'thumbnail_url': 1,
+            'duration': 1,
+            'views': 1,
+            'likes': 1,
+            'uploader_id': 1,
+            'uploader_username': 1,
+            'created_at': 1
+        }
+    ))
+    
+    # Create a mapping of video_id to video data
+    video_map = {str(v['_id']): v for v in videos}
+    
+    # Combine like data with video details
+    result = []
+    for like in likes:
+        video_id = like.get('video_id')
+        if video_id in video_map:
+            video = video_map[video_id].copy()
+            video['id'] = str(video['_id'])
+            video.pop('_id', None)
+            video['liked_at'] = like.get('created_at')
+            result.append(video)
+    
+    return result
 
 
 def get_like_status(video_id, user_id):
