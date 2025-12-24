@@ -30,6 +30,13 @@ def get_video_by_id(video_id):
     if video:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        # Add uploader info
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return video
 
 
@@ -54,10 +61,15 @@ def get_all_videos(skip=0, limit=20, search=None, category=None, tags=None, sort
                  .sort(sort_by, -1)
                  .skip(skip)
                  .limit(limit))
-    
     for video in videos:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return videos
 
 
@@ -71,6 +83,12 @@ def get_trending_videos(limit=20):
     for video in videos:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return videos
 
 
@@ -86,6 +104,12 @@ def get_featured_videos(limit=20):
     for video in videos:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return videos
 
 
@@ -163,6 +187,12 @@ def get_hot_videos(limit=20):
     for video in videos:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return videos
 
 
@@ -189,6 +219,12 @@ def get_videos_from_following(user_id, limit=20):
     for video in videos:
         video['id'] = str(video['_id'])
         video.pop('_id')
+        uploader = db['users'].find_one({'_id': ObjectId(video['uploader_id'])}) if video.get('uploader_id') else None
+        if uploader:
+            video['uploader_username'] = uploader.get('username')
+            video['uploader_display_name'] = uploader.get('display_name')
+            video['uploader_profile_picture'] = uploader.get('profile_picture')
+            video['uploader_followers_count'] = uploader.get('followers_count', 0)
     return videos
 
 

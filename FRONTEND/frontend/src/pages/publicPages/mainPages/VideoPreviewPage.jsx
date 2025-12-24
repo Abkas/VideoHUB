@@ -130,10 +130,18 @@ const VideoPreviewPage = () => {
         await unfollowUser(video.uploader_id);
         setIsFollowing(false);
         toast.success('Unfollowed');
+        setVideo(prev => prev ? {
+          ...prev,
+          uploader_followers_count: Math.max(0, (prev.uploader_followers_count || 1) - 1)
+        } : prev);
       } else {
         await followUser(video.uploader_id);
         setIsFollowing(true);
         toast.success('Following!');
+        setVideo(prev => prev ? {
+          ...prev,
+          uploader_followers_count: (prev.uploader_followers_count || 0) + 1
+        } : prev);
       }
     } catch {
       toast.error('Could not update follow status');
@@ -378,12 +386,25 @@ const VideoPreviewPage = () => {
         </div>
       )}
 
+
       {loading ? (
         <div className="flex items-center justify-center min-h-screen">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : video ? (
         <main className="max-w-[1280px] mx-auto">
+          {/* Top Section: Title, Views, Duration, Date */}
+          <div className="px-2 sm:px-3 md:px-4 pt-6 pb-2">
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+              {video.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mt-2">
+              <span>{formatViews(video.views)} views</span>
+              {video.duration && <span>{formatDuration(video.duration)}</span>}
+              <span>{formatDate(video.created_at || video.published_at)}</span>
+            </div>
+          </div>
+
           {/* Video Player */}
           <div className="aspect-video bg-black">
             {video.video_url ? (
@@ -403,19 +424,62 @@ const VideoPreviewPage = () => {
             )}
           </div>
 
-          <div className="px-2 sm:px-3 md:px-4 py-4">
-            {/* Video Title */}
-            <h1 className="text-lg sm:text-xl font-semibold text-foreground">
-              {video.title}
-            </h1>
+          {/* Uploader Info */}
+          {video.uploader_username && (
+            <div className="px-2 sm:px-3 md:px-4 py-4 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <Link 
+                    to={`/user/${video.uploader_id}`}
+                    className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0 overflow-hidden"
+                  >
+                    {video.uploader_profile_picture ? (
+                      <img src={video.uploader_profile_picture} alt={video.uploader_username} className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-6 h-6 text-primary" />
+                    )}
+                  </Link>
+                  <div className="flex-1 min-w-0">
+                    <Link 
+                      to={`/user/${video.uploader_id}`}
+                      className="font-semibold text-foreground hover:text-primary transition-colors block truncate"
+                    >
+                      {video.uploader_display_name || video.uploader_username}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      {video.uploader_followers_count ? `${video.uploader_followers_count} followers` : 'Content Creator'}
+                    </p>
+                  </div>
+                </div>
+                {isAuthenticated && user && video.uploader_id !== user.user_id && (
+                  <button
+                    onClick={handleFollow}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all flex-shrink-0 ${
+                      isFollowing
+                        ? 'bg-secondary text-foreground hover:bg-secondary/80'
+                        : 'bg-primary text-primary-foreground hover:opacity-90'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        <span>Following</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        <span>Follow</span>
+                      </>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
-            {/* Views & Date */}
-            <p className="text-sm text-muted-foreground mt-1">
-              {formatViews(video.views)} views • {formatDate(video.created_at || video.published_at)}
-            </p>
-
-            {/* Action Row */}
-            <div className="flex items-center gap-4 mt-4 py-3 border-y border-border">
+          {/* Action Row */}
+          <div className="px-2 sm:px-3 md:px-4 py-4 border-b border-border">
+            <div className="flex items-center gap-4">
               <button 
                 onClick={handleLike}
                 className={`flex items-center gap-2 transition-colors ${
@@ -464,208 +528,88 @@ const VideoPreviewPage = () => {
                 Report
               </Link>
             </div>
+          </div>
 
-            {/* Uploader Info */}
-            {video.uploader_username && (
-              <div className="py-4 border-b border-border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Link 
-                      to={`/user/${video.uploader_id}`}
-                      className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0 overflow-hidden"
-                    >
-                      {video.uploader_profile_picture ? (
-                        <img src={video.uploader_profile_picture} alt={video.uploader_username} className="w-full h-full object-cover" />
-                      ) : (
-                        <User className="w-6 h-6 text-primary" />
-                      )}
-                    </Link>
-                    <div className="flex-1 min-w-0">
-                      <Link 
-                        to={`/user/${video.uploader_id}`}
-                        className="font-semibold text-foreground hover:text-primary transition-colors block truncate"
-                      >
-                        {video.uploader_username}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">
-                        {video.uploader_followers_count ? `${video.uploader_followers_count} followers` : 'Content Creator'}
-                      </p>
-                    </div>
-                  </div>
-                  {isAuthenticated && user && video.uploader_id !== user.user_id && (
-                    <button
-                      onClick={handleFollow}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all flex-shrink-0 ${
-                        isFollowing
-                          ? 'bg-secondary text-foreground hover:bg-secondary/80'
-                          : 'bg-primary text-primary-foreground hover:opacity-90'
-                      }`}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <UserCheck className="w-4 h-4" />
-                          <span>Following</span>
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4" />
-                          <span>Follow</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-                {video.tags && video.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {video.tags.slice(0, 5).map((tag, idx) => (
-                      <span key={idx} className="text-xs bg-secondary text-foreground px-2 py-1 rounded hover:bg-secondary/80 transition-colors">
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Description */}
-            {video.description && (
-              <div className="py-4 border-b border-border">
-                <button
-                  onClick={() => setDescriptionOpen(!descriptionOpen)}
-                  className="flex items-center gap-2 text-foreground font-medium"
-                >
-                  Description
-                  {descriptionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                </button>
-                {descriptionOpen && (
-                  <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {video.description}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Comments */}
-            <div className="py-4 border-b border-border">
-              <h2 className="font-medium text-foreground mb-4">Comments ({video.comments_count || 0})</h2>
-              
-              {/* Comment Input */}
-              {isAuthenticated ? (
-                <form onSubmit={handleSubmitComment} className="mb-6">
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <textarea
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        placeholder="Add a comment..."
-                        className="w-full px-3 py-2 bg-secondary text-foreground rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-primary resize-none"
-                        rows="2"
-                      />
-                      <div className="flex justify-end gap-2 mt-2">
-                        <button
-                          type="button"
-                          onClick={() => setCommentText('')}
-                          className="px-4 py-1.5 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submittingComment || !commentText.trim()}
-                          className="flex items-center gap-2 px-4 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Send className="w-4 h-4" />
-                          {submittingComment ? 'Posting...' : 'Comment'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </form>
-              ) : (
-                <div className="mb-6 p-4 bg-secondary rounded-lg text-center">
-                  <p className="text-sm text-muted-foreground mb-2">Sign in to leave a comment</p>
-                  <Link to="/login" className="text-sm text-primary hover:underline">
-                    Login
-                  </Link>
-                </div>
-              )}
-              
-              {/* Comments List */}
-              {comments.length > 0 ? (
-                <div className="space-y-4">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-3">
-                      <div className="w-8 h-8 bg-secondary rounded-full flex-shrink-0 flex items-center justify-center">
-                        <User className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
-                            {comment.username || 'User'}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDate(comment.created_at)}
-                          </span>
-                        </div>
-                        <p className="text-sm text-foreground mt-1">{comment.text}</p>
-                        <div className="flex items-center gap-3 mt-2">
-                          <button className="text-xs text-muted-foreground hover:text-foreground">
-                            <ThumbsUp className="w-3 h-3 inline mr-1" />
-                            {comment.likes_count || 0}
-                          </button>
-                          <button className="text-xs text-muted-foreground hover:text-foreground">
-                            Reply
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No comments yet. Be the first to comment!
+          {/* Description */}
+          {video.description && (
+            <div className="px-2 sm:px-3 md:px-4 py-4 border-b border-border">
+              <button
+                onClick={() => setDescriptionOpen(!descriptionOpen)}
+                className="flex items-center gap-2 text-foreground font-medium"
+              >
+                Description
+                {descriptionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {descriptionOpen && (
+                <p className="mt-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                  {video.description}
                 </p>
               )}
             </div>
+          )}
 
-            {/* Related Videos */}
-            {relatedVideos.length > 0 && (
-              <div className="py-4">
-                <h2 className="font-medium text-foreground mb-4">Related Videos</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-                  {relatedVideos.map((relatedVideo) => (
-                    <Link key={relatedVideo.id} to={`/watch/${relatedVideo.id}`} className="group">
-                      <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
-                        {relatedVideo.thumbnail_url ? (
-                          <img 
-                            src={relatedVideo.thumbnail_url} 
-                            alt={relatedVideo.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
-                            <Play className="w-8 h-8 text-muted-foreground" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium">
-                          {formatDuration(relatedVideo.duration)}
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
-                          {relatedVideo.title}
-                        </h3>
-                        <p className="text-xs text-muted-foreground mt-1">{formatViews(relatedVideo.views)} views</p>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+          {/* Categories */}
+          {video.categories && video.categories.length > 0 && (
+            <div className="px-2 sm:px-3 md:px-4 py-2">
+              <div className="font-medium text-foreground mb-1">Categories:</div>
+              <div className="flex flex-wrap gap-2">
+                {video.categories.map((cat, idx) => (
+                  <span key={idx} className="text-xs bg-secondary text-foreground px-2 py-1 rounded hover:bg-secondary/80 transition-colors">
+                    {cat}
+                  </span>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Tags */}
+          {video.tags && video.tags.length > 0 && (
+            <div className="px-2 sm:px-3 md:px-4 py-2">
+              <div className="font-medium text-foreground mb-1">Tags:</div>
+              <div className="flex flex-wrap gap-2">
+                {video.tags.map((tag, idx) => (
+                  <span key={idx} className="text-xs bg-secondary text-foreground px-2 py-1 rounded hover:bg-secondary/80 transition-colors">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recommended Videos */}
+          {relatedVideos.length > 0 && (
+            <div className="px-2 sm:px-3 md:px-4 py-4">
+              <h2 className="font-medium text-foreground mb-4">Recommended Videos</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+                {relatedVideos.map((relatedVideo) => (
+                  <Link key={relatedVideo.id} to={`/watch/${relatedVideo.id}`} className="group">
+                    <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
+                      {relatedVideo.thumbnail_url ? (
+                        <img 
+                          src={relatedVideo.thumbnail_url} 
+                          alt={relatedVideo.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
+                          <Play className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded font-medium">
+                        {formatDuration(relatedVideo.duration)}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+                        {relatedVideo.title}
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1">{formatViews(relatedVideo.views)} views</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </main>
       ) : (
         <div className="flex items-center justify-center min-h-screen">
