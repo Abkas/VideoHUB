@@ -1,3 +1,4 @@
+
 import { axiosInstance } from "../lib/axios";
 
 // Signup: POST /users/register
@@ -102,5 +103,21 @@ export async function deleteAvatar() {
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.detail || 'Failed to delete avatar');
+  }
+}
+
+// Update user profile
+export async function updateUserProfile(data) {
+  const token = localStorage.getItem("access_token");
+  if (!token) throw new Error("No token found");
+  try {
+    const response = await axiosInstance.put(
+      "/users/me",
+      data,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || error.message || "Update failed");
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera } from "lucide-react";
-import { verifyToken, uploadAvatar, deleteAvatar } from "../../../api/publicAPI/userApi";
+import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera, Pencil } from "lucide-react";
+import { verifyToken, uploadAvatar, deleteAvatar, updateUserProfile } from "../../../api/publicAPI/userApi";
 import { axiosInstance } from "../../../api/lib/axios";
 import { getMyFollowers, getMyFollowing } from "../../../api/publicAPI/followerApi";
 import { getMyLikedVideos } from "../../../api/publicAPI/likeApi";
@@ -10,6 +10,39 @@ import toast from "react-hot-toast";
 import ConfirmAvatarChangeDialog from "../../../components/ConfirmDialog";
 
 const ProfilePage = () => {
+    // Edit profile modal state
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
+    const [editDisplayName, setEditDisplayName] = useState("");
+    const [editUsername, setEditUsername] = useState("");
+    const [editBio, setEditBio] = useState("");
+    const [editLoading, setEditLoading] = useState(false);
+
+    const openEditProfile = () => {
+      setEditDisplayName(userData?.display_name || "");
+      setEditUsername(userData?.username || "");
+      setEditBio(userData?.bio || "");
+      setEditProfileOpen(true);
+    };
+
+    const handleEditProfileSave = async () => {
+      try {
+        setEditLoading(true);
+        const payload = {
+          display_name: editDisplayName,
+          username: editUsername,
+          bio: editBio.slice(0, 100)
+        };
+
+    const updated = await updateUserProfile(payload);
+        setUserData(updated);
+        setEditProfileOpen(false);
+        toast.success("Profile updated");
+      } catch (e) {
+        toast.error(e.message || "Update failed");
+      } finally {
+        setEditLoading(false);
+      }
+    };
   const [showAvatarDialog, setShowAvatarDialog] = useState(false);
   const [pendingAvatarFile, setPendingAvatarFile] = useState(null);
   const navigate = useNavigate();
@@ -358,7 +391,72 @@ const ProfilePage = () => {
                       {userData.display_name || userData.username}
                     </h1>
                     <p className="text-muted-foreground">@{userData.username}</p>
+                    {/* Bio section with spacing */}
+                    <div className="min-h-[32px] mt-4 mb-2 w-full text-center px-2">
+                      {userData.bio ? (
+                        <span className="text-muted-foreground text-base break-words leading-relaxed">{userData.bio}</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs italic">No bio set</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={openEditProfile}
+                      className="mt-3 flex items-center gap-1 px-3 py-1 bg-primary text-white rounded text-sm"
+                    >
+                      <Pencil size={14} /> Edit Profile
+                    </button>
                   </div>
+                      {/* Edit Profile Modal */}
+                      {editProfileOpen && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                          <div className="bg-card border border-border rounded-xl shadow-2xl p-6 md:p-8 w-[90vw] max-w-md text-foreground">
+                            <h2 className="text-xl font-bold mb-6 text-primary">Edit Profile</h2>
+                            <div className="mb-5">
+                              <label className="block text-sm font-medium mb-2 text-foreground">Display Name</label>
+                              <input
+                                type="text"
+                                className="w-full bg-background border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                                value={editDisplayName}
+                                onChange={e => setEditDisplayName(e.target.value)}
+                                maxLength={50}
+                              />
+                            </div>
+                            <div className="mb-5">
+                              <label className="block text-sm font-medium mb-2 text-foreground">Username</label>
+                              <input
+                                type="text"
+                                className="w-full bg-background border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                                value={editUsername}
+                                onChange={e => setEditUsername(e.target.value)}
+                                maxLength={50}
+                              />
+                            </div>
+                            <div className="mb-6">
+                              <label className="block text-sm font-medium mb-2 text-foreground">Bio <span className="text-xs text-muted-foreground">(max 100 chars)</span></label>
+                              <textarea
+                                className="w-full bg-background border border-border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 transition"
+                                value={editBio}
+                                onChange={e => setEditBio(e.target.value.slice(0, 100))}
+                                maxLength={100}
+                                rows={3}
+                              />
+                              <div className="text-xs text-right text-muted-foreground mt-1">{editBio.length}/100</div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-4">
+                              <button
+                                className="px-4 py-2 rounded bg-muted text-foreground hover:bg-muted/80 border border-border"
+                                onClick={() => setEditProfileOpen(false)}
+                                disabled={editLoading}
+                              >Cancel</button>
+                              <button
+                                className="px-4 py-2 rounded bg-primary text-white hover:bg-primary/80 disabled:opacity-60"
+                                onClick={handleEditProfileSave}
+                                disabled={editLoading}
+                              >{editLoading ? "Saving..." : "Save"}</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                 </div>
 
                 {/* Followers and Following Row */}

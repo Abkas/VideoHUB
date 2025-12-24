@@ -19,8 +19,9 @@ class UserLogin(BaseModel):
 
 # User Update
 class UserUpdate(BaseModel):
+    username: Optional[str] = None
     display_name: Optional[str] = None
-    bio: Optional[str] = Field(None, max_length=500)
+    bio: Optional[str] = Field(None, max_length=100)
     location: Optional[str] = None
     profile_picture: Optional[str] = None
     cover_image: Optional[str] = None
