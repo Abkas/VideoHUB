@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera } from "lucide-react";
 import { verifyToken, uploadAvatar, deleteAvatar } from "../../../api/publicAPI/userApi";
@@ -7,8 +7,11 @@ import { getMyFollowers, getMyFollowing } from "../../../api/publicAPI/followerA
 import { getMyLikedVideos } from "../../../api/publicAPI/likeApi";
 import { getMySavedVideos } from "../../../api/publicAPI/savedVideoApi";
 import toast from "react-hot-toast";
+import ConfirmAvatarChangeDialog from "../../../components/ConfirmDialog";
 
 const ProfilePage = () => {
+  const [showAvatarDialog, setShowAvatarDialog] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState(null);
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -24,23 +27,16 @@ const ProfilePage = () => {
   const [showFollowersModal, setShowFollowersModal] = useState(false);
   const [showFollowingModal, setShowFollowingModal] = useState(false);
 
-  useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
-      
       const { isValid, user } = await verifyToken();
       if (!isValid) {
         toast.error("Please login to view your profile");
         navigate("/login");
         return;
       }
-
       setUserData(user);
-
       // Fetch user's videos
       try {
         const response = await axiosInstance.get(`/videos/user/${user.user_id}`);
@@ -48,7 +44,6 @@ const ProfilePage = () => {
       } catch {
         setUserVideos([]);
       }
-
       // Fetch followers and following
       try {
         const [followersData, followingData] = await Promise.all([
@@ -61,13 +56,18 @@ const ProfilePage = () => {
         setFollowers([]);
         setFollowing([]);
       }
-      
     } catch {
       toast.error("Failed to load profile");
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchUserData();
+    fetchLikedVideos();
+    fetchSavedVideos();
+  }, [fetchUserData]);
 
   const fetchLikedVideos = async () => {
     if (likedVideos.length > 0) return; // Already loaded
@@ -122,29 +122,40 @@ const ProfilePage = () => {
       return;
     }
 
-    // Confirmation dialog
-    if (!window.confirm('Do you want to change your avatar?')) {
-      return;
-    }
+    setPendingAvatarFile(file);
+    setShowAvatarDialog(true);
+  };
 
+  const handleConfirmAvatarUpload = async () => {
+    if (!pendingAvatarFile) return;
+    setShowAvatarDialog(false);
     try {
       setUploadingAvatar(true);
-      const result = await uploadAvatar(file);
-      setUserData(prev => ({ ...prev, avatar_url: result.avatar_url }));
+      // Optimistically show the new avatar immediately
+      const localUrl = URL.createObjectURL(pendingAvatarFile);
+      setUserData(prev => ({ ...prev, profile_picture: localUrl }));
+      const result = await uploadAvatar(pendingAvatarFile);
+      setUserData(prev => ({ ...prev, profile_picture: result.profile_picture || result.avatar_url }));
       toast.success('Avatar updated successfully!');
     } catch (error) {
       toast.error(error.message || 'Failed to upload avatar');
     } finally {
       setUploadingAvatar(false);
+      setPendingAvatarFile(null);
     }
+  };
+
+  const handleCancelAvatarUpload = () => {
+    setShowAvatarDialog(false);
+    setPendingAvatarFile(null);
   };
 
   const handleDeleteAvatar = async () => {
     try {
       await deleteAvatar();
-      setUserData(prev => ({ ...prev, avatar_url: null }));
+      setUserData(prev => ({ ...prev, profile_picture: null }));
       toast.success('Avatar removed');
-    } catch (error) {
+    } catch {
       toast.error('Failed to remove avatar');
     }
   };
@@ -179,7 +190,17 @@ const ProfilePage = () => {
   const currentContent = getCurrentContent();
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <ConfirmAvatarChangeDialog
+        open={showAvatarDialog}
+        title="Change Avatar"
+        message="Do you want to change your avatar?"
+        onConfirm={handleConfirmAvatarUpload}
+        onCancel={handleCancelAvatarUpload}
+        confirmText="Change"
+        cancelText="Cancel"
+      />
+      <div className="min-h-screen bg-background">
       {/* Sticky Header */}
       <header className="sticky top-0 z-50 bg-card border-b border-border">
         <div className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4">
@@ -285,16 +306,22 @@ const ProfilePage = () => {
                 {/* Avatar and Name */}
                 <div className="flex flex-col items-center gap-3">
                   <div className="relative group">
-                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-primary/10">
-                      {userData.avatar_url ? (
+                    <div className="w-24 h-24 rounded-full overflow-hidden bg-gradient-to-br from-primary/20 to-primary/10 relative">
+                      {userData.profile_picture ? (
                         <img 
-                          src={userData.avatar_url} 
+                          src={userData.profile_picture} 
                           alt={userData.username}
                           className="w-full h-full object-cover"
+                          style={{ opacity: uploadingAvatar ? 0.5 : 1 }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <User className="w-12 h-12 text-primary" />
+                        </div>
+                      )}
+                      {uploadingAvatar && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-white"></div>
                         </div>
                       )}
                     </div>
@@ -318,7 +345,7 @@ const ProfilePage = () => {
                       className="hidden"
                     />
                   </div>
-                  {userData.avatar_url && (
+                  {userData.profile_picture && (
                     <button
                       onClick={handleDeleteAvatar}
                       className="text-xs text-destructive hover:underline"
@@ -612,7 +639,7 @@ const ProfilePage = () => {
         </div>
       )}
     </div>
-  );
+  </>);
 };
 
 export default ProfilePage;

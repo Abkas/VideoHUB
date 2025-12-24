@@ -87,23 +87,23 @@ async def upload_avatar(
                 {'quality': 'auto', 'fetch_format': 'auto'}
             ]
         )
-        
-        avatar_url = upload_result.get('secure_url')
-        
+
+        profile_picture = upload_result.get('secure_url')
+
         # Update user avatar in database
         db['users'].update_one(
             {'_id': ObjectId(current_user['user_id'])},
             {
                 '$set': {
-                    'avatar_url': avatar_url,
+                    'profile_picture': profile_picture,
                     'updated_at': datetime.utcnow()
                 }
             }
         )
-        
+
         return {
             "message": "Avatar uploaded successfully",
-            "avatar_url": avatar_url
+            "profile_picture": profile_picture
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to upload avatar: {str(e)}")
@@ -116,7 +116,7 @@ def delete_avatar(current_user: dict = Depends(get_current_user)):
     db['users'].update_one(
         {'_id': ObjectId(current_user['user_id'])},
         {
-            '$unset': {'avatar_url': ''},
+            '$unset': {'profile_picture': ''},
             '$set': {'updated_at': datetime.utcnow()}
         }
     )
