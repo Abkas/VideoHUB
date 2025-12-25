@@ -16,10 +16,23 @@ from app.services.video.video_services import (
     increment_video_view
 )
 from app.core.security import get_current_user
+from fastapi import File, UploadFile
+from app.core.cloudinary_config import upload_to_cloudinary
+
 
 router = APIRouter(prefix="/videos", tags=["Videos"])
 
 
+
+@router.post("/upload")
+def upload_to_cloudinary_route(file: UploadFile = File(...), resource_type: str = "auto", folder: str = "videohub", current_user: dict = Depends(get_current_user)):
+    """Upload any file to Cloudinary (video, image, etc.)"""
+    try:
+        metadata = upload_to_cloudinary(file.file, resource_type=resource_type, folder=folder)
+        return {"url": metadata["secure_url"], "metadata": metadata}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def upload_video(video_data: VideoCreate, current_user: dict = Depends(get_current_user)):
     """Upload a new video"""
@@ -87,8 +100,8 @@ def get_video_details(video_id: str):
 
 @router.put("/{video_id}")
 def update_video_details(video_id: str, update_data: VideoUpdate, current_user: dict = Depends(get_current_user)):
-    """Update video details (owner only)"""
-    updated_video = update_video(video_id, update_data, current_user['user_id'])
+    """Update video details (owner or admin)"""
+    updated_video = update_video(video_id, update_data, current_user)
     return updated_video
 
 
@@ -115,3 +128,4 @@ def increment_view_count(video_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Video not found")
     return {"message": "View count incremented"}
+

@@ -1,3 +1,4 @@
+
 import { axiosInstance } from '../lib/axios';
 
 // Get all videos with filters
@@ -106,3 +107,79 @@ export const incrementVideoView = async (videoId) => {
     throw error;
   }
 };
+
+
+// Create video
+export async function createVideo(videoData) {
+  try {
+    const response = await axiosInstance.post("/videos/", videoData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to create video");
+  }
+}
+
+// Update video
+export async function updateVideo(videoId, videoData) {
+  try {
+    const response = await axiosInstance.put(`/videos/${videoId}`, videoData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to update video");
+  }
+}
+
+// Delete video
+export async function deleteVideo(videoId) {
+  try {
+    const response = await axiosInstance.delete(`/videos/${videoId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to delete video");
+  }
+}
+
+// Upload video file to Cloudinary
+export async function uploadVideo(file, onUploadProgress) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await axiosInstance.post('/videos/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to upload video");
+  }
+}
+
+// Upload thumbnail file to Cloudinary
+export async function uploadThumbnail(file, onUploadProgress) {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    // Use /videos/upload for thumbnails as well
+    const response = await axiosInstance.post('/videos/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to upload thumbnail");
+  }
+}
+
+// Get full video details with statistics
+export async function getVideoDetails(videoId) {
+  try {
+    const response = await axiosInstance.get(`/videos/${videoId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to fetch video details");
+  }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getVideoDetails, updateVideo, deleteVideo } from '../../../api/adminAPI/videoApi';
+import { getVideoDetails, updateVideo, deleteVideo } from '../../../api/publicAPI/videoApi';
 import toast from 'react-hot-toast';
 import { 
   ArrowLeft, Edit2, Trash2, Eye, ThumbsUp, ThumbsDown, MessageCircle, 

@@ -126,18 +126,16 @@ def get_videos_by_user(user_id, skip=0, limit=20):
     return videos
 
 
-def update_video(video_id, update_data, user_id):
-    """Update video"""
+def update_video(video_id, update_data, user):
+    """Update video (by uploader or admin)"""
     video = get_video_by_id(video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
-    
-    if video.get('uploader_id') != user_id:
+    is_admin = user.get('is_admin', False)
+    if video.get('uploader_id') != user['user_id'] and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
     update_dict = update_data.dict(exclude_unset=True)
-    
-    result = db['videos'].update_one(
+    db['videos'].update_one(
         {'_id': ObjectId(video_id)},
         {'$set': update_dict}
     )

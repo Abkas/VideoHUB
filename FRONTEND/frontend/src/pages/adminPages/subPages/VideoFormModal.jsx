@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Upload, X, Save, Plus } from 'lucide-react';
-import { uploadVideo, uploadThumbnail } from '../../../api/adminAPI/videoApi';
+import { uploadVideo, uploadThumbnail } from '../../../api/publicAPI/videoApi';
 import { createCategory, createTag } from '../../../api/adminAPI/categoryTagApi';
 import toast from 'react-hot-toast';
 
@@ -49,28 +49,29 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
 
     try {
       setUploadingVideo(true);
+
       const response = await uploadVideo(videoFile, (progressEvent) => {
         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
         setVideoUploadProgress(percentCompleted);
       });
-      
+      // Debug Cloudinary response
+      console.log('Cloudinary upload response:', response);
       // Extract video metadata from Cloudinary response
-      const duration = response.duration || 0; // Cloudinary provides duration in seconds
-      
+      const duration = response.metadata?.duration || 0;
       setVideo({ 
         ...video, 
         video_url: response.url,
         duration: Math.round(duration)
       });
-      
+
       // Store metadata for display
       setVideoMetadata({
         duration: Math.round(duration),
-        format: response.format,
-        resolution: response.width && response.height ? `${response.width}x${response.height}` : null,
-        size: response.bytes ? `${(response.bytes / (1024 * 1024)).toFixed(2)} MB` : null
+        format: response.metadata?.format,
+        resolution: response.metadata?.width && response.metadata?.height ? `${response.metadata.width}x${response.metadata.height}` : null,
+        size: response.metadata?.bytes ? `${(response.metadata.bytes / (1024 * 1024)).toFixed(2)} MB` : null
       });
-      
+
       toast.success('Video uploaded successfully');
       setVideoFile(null);
       setVideoUploadProgress(0);

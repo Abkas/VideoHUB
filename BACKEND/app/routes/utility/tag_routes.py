@@ -16,9 +16,8 @@ router = APIRouter(
 @router.post('/', response_model=TagResponse)
 def create_new_tag(
     tag_data: TagCreate,
-    current_user: dict = Depends(get_admin_user)
+    current_user: dict = Depends(get_current_user)
 ):
-    """Create a new tag (admin only)"""
     return create_tag(tag_data)
 
 
