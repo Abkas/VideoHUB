@@ -1,3 +1,4 @@
+import { getUserVideos } from "../../../api/publicAPI/videoApi";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera, Pencil } from "lucide-react";
@@ -10,9 +11,7 @@ import toast from "react-hot-toast";
 import ConfirmAvatarChangeDialog from "../../../components/ConfirmDialog";
 
 const ProfilePage = () => {
-  // Remove follower handler
   const handleRemoveFollower = async (followerId) => {
-    // TODO: Implement remove follower API call
     // Example: await removeFollower(followerId);
     setFollowers(f => f.filter(fol => fol.follower_id !== followerId));
     toast.success("Follower removed");
@@ -79,6 +78,7 @@ const ProfilePage = () => {
     try {
       setLoading(true);
       const { isValid, user } = await verifyToken();
+      console.log('verifyToken user:', user);
       if (!isValid) {
         toast.error("Please login to view your profile");
         navigate("/login");
@@ -86,12 +86,12 @@ const ProfilePage = () => {
       }
       setUserData(user);
       // Fetch user's videos
-      try {
-        const response = await axiosInstance.get(`/videos/user/${user.user_id}`);
-        setUserVideos(response.data.videos || []);
-      } catch {
-        setUserVideos([]);
-      }
+        try {
+          const data = await getUserVideos(user.id, 0, 50);
+          setUserVideos(data.videos || []);
+        } catch (err) {
+          setUserVideos([]);
+        }
       // Fetch followers and following
       try {
         const [followersData, followingData] = await Promise.all([
@@ -117,17 +117,12 @@ const ProfilePage = () => {
     fetchSavedVideos();
   }, [fetchUserData]);
 
-  // Debug: Log followers and following data
+  // Removed debug console logs for followers/following
   useEffect(() => {
-    if (followers.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log('Followers:', followers);
-    }
-    if (following.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log('Following:', following);
-    }
-  }, [followers, following]);
+    fetchUserData();
+    fetchLikedVideos();
+    fetchSavedVideos();
+  }, [fetchUserData]);
 
   const fetchLikedVideos = async () => {
     if (likedVideos.length > 0) return; // Already loaded
@@ -624,6 +619,12 @@ const ProfilePage = () => {
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-br from-secondary to-muted flex items-center justify-center">
                           <Video className="w-8 h-8 text-muted-foreground" />
+                        </div>
+                      )}
+                      {/* Status Badge Overlay: Only for user's own uploads */}
+                      {activeTab === "videos" && video.status !== "published" && (
+                        <div className="absolute top-2 left-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded font-semibold shadow">
+                          Processing...
                         </div>
                       )}
                       {video.duration && (
