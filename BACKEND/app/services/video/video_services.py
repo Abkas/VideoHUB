@@ -142,15 +142,13 @@ def update_video(video_id, update_data, user):
     return get_video_by_id(video_id)
 
 
-def delete_video(video_id, user_id):
-    """Delete video"""
+def delete_video(video_id, user_id, is_admin=False):
+    """Delete video (by uploader or admin)"""
     video = get_video_by_id(video_id)
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
-    
-    if video.get('uploader_id') != user_id:
+    if video.get('uploader_id') != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
-    
     result = db['videos'].delete_one({'_id': ObjectId(video_id)})
     return result.deleted_count > 0
 

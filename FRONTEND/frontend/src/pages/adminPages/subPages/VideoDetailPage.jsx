@@ -15,6 +15,7 @@ export default function VideoDetailPage() {
   const [loading, setLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [toggleLoading, setToggleLoading] = useState({
     premium: false,
     comments: false,
@@ -52,9 +53,6 @@ export default function VideoDetailPage() {
   };
 
   const handleDeleteVideo = async () => {
-    if (!confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
-      return;
-    }
     try {
       await deleteVideo(videoId);
       toast.success('Video deleted successfully');
@@ -62,6 +60,7 @@ export default function VideoDetailPage() {
     } catch (error) {
       toast.error(error.message);
     }
+    setShowDeleteModal(false);
   };
 
   const handleStatusChange = async (newStatus) => {
@@ -208,12 +207,35 @@ export default function VideoDetailPage() {
               <span className="text-sm sm:text-base">Edit</span>
             </button>
             <button
-              onClick={handleDeleteVideo}
+              onClick={() => setShowDeleteModal(true)}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 sm:px-4 bg-destructive text-destructive-foreground rounded-lg hover:opacity-90 transition-opacity"
             >
               <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
               <span className="text-sm sm:text-base">Delete</span>
             </button>
+            {showDeleteModal && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+                <div className="bg-card border border-border rounded-xl p-6 max-w-xs w-full shadow-xl flex flex-col items-center">
+                  <Trash2 className="w-8 h-8 text-destructive mb-2" />
+                  <h2 className="text-lg font-bold text-destructive mb-2">Delete Video?</h2>
+                  <p className="text-sm text-muted-foreground mb-4 text-center">Are you sure you want to delete this video? This action cannot be undone.</p>
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={handleDeleteVideo}
+                      className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg font-semibold hover:opacity-80 transition-opacity"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -351,7 +373,16 @@ export default function VideoDetailPage() {
               <User className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <div className="text-xs sm:text-sm text-muted-foreground">Uploader</div>
-                <div className="text-sm sm:text-base text-foreground">{video.uploader_name || 'Unknown'}</div>
+                <div className="flex items-center gap-2 mt-1">
+                  {video.uploader_profile_picture ? (
+                    <img src={video.uploader_profile_picture} alt={video.uploader_display_name || video.uploader_username || 'Uploader'} className="w-8 h-8 rounded-full object-cover border border-border" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-primary border border-border">
+                      {(video.uploader_display_name?.[0] || video.uploader_username?.[0] || '?').toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-sm text-foreground font-medium truncate max-w-[120px]">{video.uploader_display_name || video.uploader_username || 'Unknown'}</span>
+                </div>
                 {video.uploader_email && (
                   <div className="text-xs sm:text-sm text-muted-foreground">{video.uploader_email}</div>
                 )}

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import toast from "react-hot-toast";
 import { getAllCategories, getAllTags, createTag } from "../../../api/adminAPI/categoryTagApi";
 import { uploadVideo, uploadThumbnail, createVideo } from "../../../api/publicAPI/videoApi";
 import { Link } from "react-router-dom";
@@ -16,10 +17,14 @@ const UploadPage = () => {
   const [videoFile, setVideoFile] = useState(null);
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+    const videoInputRef = useRef(null);
+    const thumbnailInputRef = useRef(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
-  const [progress, setProgress] = useState(0);
   const [videoDuration, setVideoDuration] = useState(0);
+  const [cloudinaryMeta, setCloudinaryMeta] = useState(null);
 
   useEffect(() => {
     getAllCategories().then(data => setCategories(data || [])).catch(() => setCategories([]));
@@ -129,69 +134,102 @@ const UploadPage = () => {
       <main className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4 py-6">
         <h1 className="text-2xl font-bold text-foreground mb-6">Upload Video</h1>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6 w-full max-w-lg mx-auto sm:max-w-2xl md:max-w-3xl lg:max-w-4xl px-2 sm:px-0">
           {/* Video Upload */}
-          <div className="border-2 border-dashed border-border rounded-xl p-8 text-center transition-colors">
-            <Video className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <div
+            className="border-2 border-dashed border-primary rounded-xl p-4 sm:p-8 text-center transition-colors flex flex-col items-center w-full cursor-pointer hover:border-4 hover:border-primary"
+            onClick={e => {
+              // Only trigger file input if the click is NOT on the upload button
+              if (e.target === e.currentTarget || e.target.classList.contains('pointer-events-none')) {
+                videoInputRef.current && videoInputRef.current.click();
+              }
+            }}
+          >
+            <Video className="w-12 h-12 text-muted-foreground mx-auto mb-4 pointer-events-none" />
             <input
+              ref={videoInputRef}
               type="file"
               accept="video/*"
               onChange={e => setVideoFile(e.target.files[0])}
-              className="mb-2"
+              className="mb-2 w-full max-w-xs mx-auto hidden"
             />
+            {videoFile && (
+              <div className="text-xs text-foreground mt-1 truncate max-w-xs">Selected: {videoFile.name}</div>
+            )}
             <button
               type="button"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold mt-2"
+              className={`w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold mt-2 transition-opacity ${!videoFile || uploading ? 'opacity-50 pointer-events-none' : ''}`}
               disabled={!videoFile || uploading}
-              onClick={async () => {
+              onClick={async (e) => {
+                e.stopPropagation(); // Prevent parent div click
                 if (!videoFile) return;
                 setUploading(true);
+                setUploaded(false);
                 try {
-                  const res = await uploadVideo(videoFile, e => setProgress(Math.round((e.loaded * 100) / e.total)));
-                  console.log('Cloudinary upload response:', res);
+                  const res = await uploadVideo(videoFile);
                   setVideoUrl(res.url || res.secure_url || "");
                   setVideoDuration(Math.round(res.metadata?.duration || 0));
-                  setProgress(0);
+                  setCloudinaryMeta(res.metadata || null);
+                  setUploaded(true);
+                  toast.success("Video uploaded to Cloudinary!");
                 } catch {
                   setVideoUrl("");
                   setVideoDuration(0);
+                  setCloudinaryMeta(null);
+                  setUploaded(false);
+                  toast.error("Failed to upload video.");
                 }
                 setUploading(false);
               }}
             >
-              {uploading ? `Uploading... (${progress}%)` : "Upload Video"}
+              {uploading ? `Uploading...` : uploaded ? "Uploaded!" : "Upload Video"}
             </button>
-            {videoUrl && <p className="text-green-600 mt-2">Video uploaded!</p>}
             <p className="text-sm text-muted-foreground mt-1">MP4, WebM, MOV up to 2GB</p>
+
+            {/* Cloudinary Metadata Display removed as requested */}
           </div>
 
           {/* Thumbnail Upload */}
-          <div className="border-2 border-dashed border-border rounded-xl p-6 text-center transition-colors">
-            <Image className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+          <div
+            className="border-2 border-dashed border-primary rounded-xl p-4 sm:p-6 text-center transition-colors flex flex-col items-center w-full cursor-pointer hover:border-4 hover:border-primary"
+            onClick={e => {
+              // Only trigger file input if the click is NOT on the upload button
+              if (e.target === e.currentTarget || e.target.classList.contains('pointer-events-none')) {
+                thumbnailInputRef.current && thumbnailInputRef.current.click();
+              }
+            }}
+          >
+            <Image className="w-10 h-10 text-muted-foreground mx-auto mb-3 pointer-events-none" />
             <input
+              ref={thumbnailInputRef}
               type="file"
               accept="image/*"
               onChange={e => setThumbnailFile(e.target.files[0])}
-              className="mb-2"
+              className="mb-2 w-full max-w-xs mx-auto hidden"
             />
+            {thumbnailFile && (
+              <div className="text-xs text-foreground mt-1 truncate max-w-xs">Selected: {thumbnailFile.name}</div>
+            )}
             <button
               type="button"
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold mt-2"
-              disabled={!thumbnailFile || uploading}
-              onClick={async () => {
+              className={`w-full sm:w-auto px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold mt-2 transition-opacity ${!thumbnailFile || uploadingThumbnail ? 'opacity-50 pointer-events-none' : ''}`}
+              disabled={!thumbnailFile || uploadingThumbnail}
+              onClick={async (e) => {
+                e.stopPropagation(); // Prevent parent div click
                 if (!thumbnailFile) return;
-                setUploading(true);
+                setUploadingThumbnail(true);
                 try {
-                  const res = await uploadThumbnail(thumbnailFile, e => setProgress(Math.round((e.loaded * 100) / e.total)));
+                  const res = await uploadThumbnail(thumbnailFile);
                   setThumbnailUrl(res.url || res.secure_url || "");
-                  setProgress(0);
+                  toast.success("Thumbnail uploaded to Cloudinary!");
                 } catch {
                   setThumbnailUrl("");
+                  toast.error("Failed to upload thumbnail.");
                 }
-                setUploading(false);
+                setUploadingThumbnail(false);
               }}
             >
-              {uploading ? `Uploading... (${progress}%)` : "Upload Thumbnail"}
+              {uploadingThumbnail ? `Uploading...` : "Upload Thumbnail"}
             </button>
             {thumbnailUrl && <p className="text-green-600 mt-2">Thumbnail uploaded!</p>}
             <p className="text-sm text-muted-foreground mt-1">JPG, PNG (16:9 ratio recommended)</p>
@@ -303,7 +341,6 @@ const UploadPage = () => {
                   thumbnail_url: thumbnailUrl,
                   duration: videoDuration || 0
                 });
-                // Optionally reset form or show success
                 setTitle("");
                 setDescription("");
                 setSelectedCategories([]);
@@ -313,9 +350,9 @@ const UploadPage = () => {
                 setVideoUrl("");
                 setThumbnailUrl("");
                 setVideoDuration(0);
-                alert("Video uploaded successfully!");
+                toast.success("Video uploaded and published successfully!");
               } catch {
-                alert("Failed to upload video.");
+                toast.error("Failed to upload video.");
               }
               setUploading(false);
             }}

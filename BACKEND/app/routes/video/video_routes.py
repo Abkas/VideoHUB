@@ -107,8 +107,8 @@ def update_video_details(video_id: str, update_data: VideoUpdate, current_user: 
 
 @router.delete("/{video_id}")
 def delete_video_by_id(video_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete video (owner only)"""
-    success = delete_video(video_id, current_user['user_id'])
+    """Delete video (owner or admin)"""
+    success = delete_video(video_id, current_user['user_id'], current_user.get('is_admin', False))
     if not success:
         raise HTTPException(status_code=404, detail="Video not found")
     return {"message": "Video deleted successfully"}

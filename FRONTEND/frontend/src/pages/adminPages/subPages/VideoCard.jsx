@@ -1,8 +1,21 @@
 import { Play, Eye, Edit2, Trash2, Tag } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const VideoCard = ({ video, formatDuration, onEdit, onDelete }) => {
   const navigate = useNavigate();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = (e) => {
+    e.stopPropagation();
+    onDelete(video._id);
+    setShowDeleteModal(false);
+  };
 
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden hover:shadow-xl transition-all duration-300 hover:ring-2 hover:ring-primary/50 flex flex-col h-full cursor-pointer" onClick={() => navigate(`/admin/videos/${video._id}`)}>
@@ -104,15 +117,35 @@ const VideoCard = ({ video, formatDuration, onEdit, onDelete }) => {
             <span className="hidden sm:inline">Edit</span>
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(video._id);
-            }}
+            onClick={handleDelete}
             className="flex-1 flex items-center justify-center gap-1 px-2 py-1 sm:py-1.5 bg-destructive/20 text-destructive rounded text-[10px] sm:text-xs hover:bg-destructive/30 transition-colors"
           >
             <Trash2 className="w-3 h-3" />
             <span className="hidden sm:inline">Delete</span>
           </button>
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+              <div className="bg-card border border-border rounded-xl p-6 max-w-xs w-full shadow-xl flex flex-col items-center">
+                <Trash2 className="w-8 h-8 text-destructive mb-2" />
+                <h2 className="text-lg font-bold text-destructive mb-2">Delete Video?</h2>
+                <p className="text-sm text-muted-foreground mb-4 text-center">Are you sure you want to delete this video? This action cannot be undone.</p>
+                <div className="flex gap-3 w-full">
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Yes, Delete
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setShowDeleteModal(false); }}
+                    className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg font-semibold hover:opacity-80 transition-opacity"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
