@@ -608,7 +608,7 @@ const ProfilePage = () => {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {currentContent.map((video) => (
-                  <Link key={video.id} to={`/watch/${video.id}`} className="group">
+                  <Link key={video.id} to={`/profile/videos/${video.id}`} className="group">
                     <div className="relative aspect-video bg-muted rounded-lg overflow-hidden">
                       {video.thumbnail_url ? (
                         <img 
