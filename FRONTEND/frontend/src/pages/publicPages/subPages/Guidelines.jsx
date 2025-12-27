@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, AlertTriangle } from "lucide-react";
+import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, AlertTriangle } from "lucide-react";
 
 const Guidelines = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,10 +55,6 @@ const Guidelines = () => {
               <Link to="/browse" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
-              </Link>
-              <Link to="/upload" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Upload className="w-5 h-5" />
-                <span>Upload</span>
               </Link>
               <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <User className="w-5 h-5" />

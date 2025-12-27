@@ -11,8 +11,19 @@ from app.services.user.subscription_services import (
     downgrade_subscription
 )
 from app.core.security import get_current_user
+from app.services.admin.subscription_services import get_all_subscription_plans
 
 router = APIRouter(prefix="/subscriptions", tags=["Subscriptions"])
+
+
+@router.get("/plans")
+def get_subscription_plans():
+    """Get all available subscription plans (public endpoint)"""
+    plans = get_all_subscription_plans()
+    return {
+        "plans": plans,
+        "total": len(plans)
+    }
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -36,6 +47,18 @@ def get_subscription_history(skip: int = 0, limit: int = 20, current_user: dict 
     """Get current user's subscription history"""
     subscriptions = get_user_subscription_history(current_user['user_id'], skip, limit)
     return {"subscriptions": subscriptions, "count": len(subscriptions)}
+
+
+@router.get("/me/all")
+def get_all_my_subscriptions(current_user: dict = Depends(get_current_user)):
+    """Get all subscriptions for current user (active and historical)"""
+    from app.services.admin.subscription_services import get_user_subscriptions
+    subscriptions = get_user_subscriptions(current_user['user_id'])
+    return {
+        "user_id": current_user['user_id'],
+        "subscriptions": subscriptions,
+        "count": len(subscriptions)
+    }
 
 
 @router.put("/{subscription_id}")

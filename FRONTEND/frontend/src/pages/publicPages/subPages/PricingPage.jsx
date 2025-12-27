@@ -1,86 +1,115 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SubscriptionCard from '../../../components/SubscriptionCard';
 import { Check, HelpCircle } from 'lucide-react';
-
-const SUBSCRIPTION_PLANS = {
-  free: {
-    name: 'Free',
-    display_name: 'Free',
-    description: 'Basic access with ads',
-    features: [
-      '480p quality',
-      'Ad-supported',
-      'Limited watch history (30 days)',
-      'No downloads'
-    ],
-    price_inr: 0,
-    price_npr: 0,
-    price_usd: 0
-  },
-  basic: {
-    name: 'Basic',
-    display_name: 'Basic',
-    description: 'Ad-free with HD quality',
-    features: [
-      '720p HD quality',
-      'Ad-free experience',
-      'Download 5 videos/month',
-      'Full watch history',
-      '1 concurrent stream'
-    ],
-    price_inr: 99,
-    price_npr: 200,
-    price_usd: 1.99
-  },
-  premium: {
-    name: 'Premium',
-    display_name: 'Premium',
-    description: 'Full HD with unlimited downloads',
-    features: [
-      '1080p Full HD quality',
-      'Ad-free experience',
-      'Unlimited downloads',
-      '2 concurrent streams',
-      'Early access to content',
-      'Priority support'
-    ],
-    price_inr: 299,
-    price_npr: 500,
-    price_usd: 4.99
-  },
-  premium_plus: {
-    name: 'Premium Plus',
-    display_name: 'Premium Plus',
-    description: '4K Ultra HD with premium features',
-    features: [
-      '4K Ultra HD quality',
-      'Ad-free experience',
-      'Unlimited downloads',
-      '4 concurrent streams',
-      'Exclusive premium content',
-      'No watermarks',
-      'Priority support'
-    ],
-    price_inr: 499,
-    price_npr: 800,
-    price_usd: 7.99
-  }
-};
+import { getSubscriptionPlans, createSubscription, getMyActiveSubscription } from '../../../api/publicAPI/subscriptionApi';
+import toast from 'react-hot-toast';
 
 export default function PricingPage() {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('monthly');
   const [currency, setCurrency] = useState('INR');
+  const [subscriptionPlans, setSubscriptionPlans] = useState([]);
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleSelectPlan = (plan) => {
-    // Redirect to checkout or subscription creation
+  useEffect(() => {
+    fetchSubscriptionData();
+  }, []);
+
+  const fetchSubscriptionData = async () => {
+    try {
+      setLoading(true);
+      console.log('🔄 Fetching subscription data from backend...');
+
+      // Fetch available plans
+      const plansResponse = await getSubscriptionPlans();
+      console.log('📦 Plans response:', plansResponse);
+      const plansArray = Object.values(plansResponse.plans || {});
+      setSubscriptionPlans(plansArray);
+
+      // Try to fetch current user's active subscription (if logged in)
+      try {
+        const activeSubscription = await getMyActiveSubscription();
+        console.log('👤 Current active subscription:', activeSubscription);
+        setCurrentSubscription(activeSubscription);
+      } catch (error) {
+        console.log('ℹ️ User not logged in or no active subscription');
+        setCurrentSubscription(null);
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching subscription data:', error);
+      toast.error('Failed to load subscription data');
+      setSubscriptionPlans([]);
+      setCurrentSubscription(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectPlan = async (plan) => {
+    console.log('🎯 Selecting plan:', plan.name);
+
+    // Check if user is logged in by trying to get active subscription
+    let isLoggedIn = false;
+    try {
+      await getMyActiveSubscription();
+      isLoggedIn = true;
+    } catch (error) {
+      isLoggedIn = false;
+    }
+
+    if (!isLoggedIn) {
+      console.log('👤 User not logged in, redirecting to login');
+      toast.error('Please login to subscribe to plans');
+      navigate('/login', { state: { redirectTo: '/plans', selectedPlan: plan.name } });
+      return;
+    }
+
+    // Check if this is already the current plan
+    if (currentSubscription && currentSubscription.plan === plan.name) {
+      toast.info('You are already subscribed to this plan');
+      return;
+    }
+
     if (plan.price_inr === 0) {
-      // Free plan - direct signup
-      navigate('/signup');
+      // Free plan - create subscription directly
+      try {
+        setCreatingSubscription(true);
+        console.log('🆓 Creating free subscription...');
+
+        const subscriptionData = {
+          plan: plan.name,
+          billing_cycle: billingCycle,
+          currency: currency,
+          price: plan.price_inr,
+          payment_method: 'free'
+        };
+
+        const result = await createSubscription(subscriptionData);
+        console.log('✅ Free subscription created:', result);
+
+        toast.success(`Successfully subscribed to ${plan.display_name}!`);
+        navigate('/subscriptions'); // Redirect to user's subscriptions page
+
+      } catch (error) {
+        console.error('❌ Error creating free subscription:', error);
+        toast.error('Failed to create subscription. Please try again.');
+      } finally {
+        setCreatingSubscription(false);
+      }
     } else {
       // Paid plans - go to checkout
-      navigate('/checkout', { state: { plan: plan.name.toLowerCase().replace(' ', '_'), billingCycle, currency } });
+      console.log('💳 Redirecting to checkout for paid plan');
+      navigate('/checkout', {
+        state: {
+          plan: plan.name.toLowerCase().replace(' ', '_'),
+          billingCycle,
+          currency,
+          planData: plan
+        }
+      });
     }
   };
 
@@ -142,31 +171,33 @@ export default function PricingPage() {
       {/* Plans Grid */}
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <SubscriptionCard
-            plan={SUBSCRIPTION_PLANS.free}
-            currency={currency}
-            billingCycle={billingCycle}
-            onSelect={handleSelectPlan}
-          />
-          <SubscriptionCard
-            plan={SUBSCRIPTION_PLANS.basic}
-            currency={currency}
-            billingCycle={billingCycle}
-            onSelect={handleSelectPlan}
-          />
-          <SubscriptionCard
-            plan={SUBSCRIPTION_PLANS.premium}
-            isPopular={true}
-            currency={currency}
-            billingCycle={billingCycle}
-            onSelect={handleSelectPlan}
-          />
-          <SubscriptionCard
-            plan={SUBSCRIPTION_PLANS.premium_plus}
-            currency={currency}
-            billingCycle={billingCycle}
-            onSelect={handleSelectPlan}
-          />
+          {loading ? (
+            <div className="col-span-full flex items-center justify-center py-20">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <p className="mt-4 text-muted-foreground">Loading available plans...</p>
+              </div>
+            </div>
+          ) : subscriptionPlans.length > 0 ? (
+            subscriptionPlans.map((plan) => {
+              console.log('🎨 Rendering plan:', plan.name, plan);
+              return (
+                <SubscriptionCard
+                  key={plan.name}
+                  plan={plan}
+                  currency={currency}
+                  billingCycle={billingCycle}
+                  onSelect={handleSelectPlan}
+                  currentPlan={currentSubscription?.plan}
+                  isPopular={plan.name === 'Premium'}
+                />
+              );
+            })
+          ) : (
+            <div className="col-span-full text-center py-20">
+              <p className="text-muted-foreground">No subscription plans available</p>
+            </div>
+          )}
         </div>
 
         {/* Features Comparison */}
@@ -179,47 +210,61 @@ export default function PricingPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left py-4 px-4 text-muted-foreground font-medium">Feature</th>
-                  <th className="text-center py-4 px-4 text-foreground font-semibold">Free</th>
-                  <th className="text-center py-4 px-4 text-foreground font-semibold">Basic</th>
-                  <th className="text-center py-4 px-4 text-foreground font-semibold">Premium</th>
-                  <th className="text-center py-4 px-4 text-foreground font-semibold">Premium+</th>
+                  {subscriptionPlans.map((plan) => (
+                    <th key={plan.name} className="text-center py-4 px-4 text-foreground font-semibold">
+                      {plan.display_name}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 <tr className="border-b border-border">
                   <td className="py-4 px-4 text-muted-foreground">Video Quality</td>
-                  <td className="text-center py-4 px-4 text-foreground">480p</td>
-                  <td className="text-center py-4 px-4 text-foreground">720p HD</td>
-                  <td className="text-center py-4 px-4 text-foreground">1080p FHD</td>
-                  <td className="text-center py-4 px-4 text-foreground">4K UHD</td>
+                  {subscriptionPlans.map((plan) => (
+                    <td key={plan.name} className="text-center py-4 px-4 text-foreground">
+                      {plan.max_quality || 'N/A'}
+                    </td>
+                  ))}
                 </tr>
                 <tr className="border-b border-border">
                   <td className="py-4 px-4 text-muted-foreground">Ad-free</td>
-                  <td className="text-center py-4 px-4">-</td>
-                  <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-400 mx-auto" /></td>
-                  <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-400 mx-auto" /></td>
-                  <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-400 mx-auto" /></td>
+                  {subscriptionPlans.map((plan) => (
+                    <td key={plan.name} className="text-center py-4 px-4">
+                      {plan.ad_free ? (
+                        <Check className="w-5 h-5 text-green-400 mx-auto" />
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  ))}
                 </tr>
                 <tr className="border-b border-border">
                   <td className="py-4 px-4 text-muted-foreground">Downloads</td>
-                  <td className="text-center py-4 px-4 text-foreground">0</td>
-                  <td className="text-center py-4 px-4 text-foreground">5/month</td>
-                  <td className="text-center py-4 px-4 text-foreground">Unlimited</td>
-                  <td className="text-center py-4 px-4 text-foreground">Unlimited</td>
+                  {subscriptionPlans.map((plan) => (
+                    <td key={plan.name} className="text-center py-4 px-4 text-foreground">
+                      {plan.downloads_per_month === -1 ? 'Unlimited' : (plan.downloads_per_month || '0')}
+                    </td>
+                  ))}
                 </tr>
                 <tr className="border-b border-border">
                   <td className="py-4 px-4 text-muted-foreground">Concurrent Streams</td>
-                  <td className="text-center py-4 px-4 text-foreground">1</td>
-                  <td className="text-center py-4 px-4 text-foreground">1</td>
-                  <td className="text-center py-4 px-4 text-foreground">2</td>
-                  <td className="text-center py-4 px-4 text-foreground">4</td>
+                  {subscriptionPlans.map((plan) => (
+                    <td key={plan.name} className="text-center py-4 px-4 text-foreground">
+                      {plan.concurrent_streams || '1'}
+                    </td>
+                  ))}
                 </tr>
                 <tr>
                   <td className="py-4 px-4 text-muted-foreground">Priority Support</td>
-                  <td className="text-center py-4 px-4">-</td>
-                  <td className="text-center py-4 px-4">-</td>
-                  <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-400 mx-auto" /></td>
-                  <td className="text-center py-4 px-4"><Check className="w-5 h-5 text-green-400 mx-auto" /></td>
+                  {subscriptionPlans.map((plan) => (
+                    <td key={plan.name} className="text-center py-4 px-4">
+                      {plan.priority_support ? (
+                        <Check className="w-5 h-5 text-green-400 mx-auto" />
+                      ) : (
+                        '-'
+                      )}
+                    </td>
+                  ))}
                 </tr>
               </tbody>
             </table>

@@ -23,7 +23,7 @@ from app.services.admin.subscription_services import (
     get_user_subscriptions
 )
 from app.core.security import get_admin_user
-from app.core.payment_config import SUBSCRIPTION_PLANS, get_plan_details
+from app.services.admin.subscription_services import get_all_subscription_plans
 from typing import Optional
 
 router = APIRouter(prefix="/admin/subscriptions", tags=["Admin Subscriptions"])
@@ -37,10 +37,11 @@ def get_stats(admin: dict = Depends(get_admin_user)):
 
 @router.get("/plans")
 def get_plans(admin: dict = Depends(get_admin_user)):
-    """Get all subscription plans configuration"""
+    """Get all subscription plans from database"""
+    plans = get_all_subscription_plans()
     return {
-        "plans": SUBSCRIPTION_PLANS,
-        "total": len(SUBSCRIPTION_PLANS)
+        "plans": plans,
+        "total": len(plans)
     }
 
 
@@ -77,17 +78,17 @@ def create_subscription_plan(
     }
     duration_days = duration_map.get(subscription_data.duration_unit, 30)
     
-    # Get plan details for pricing
-    plan_details = SUBSCRIPTION_PLANS.get(subscription_data.plan, SUBSCRIPTION_PLANS['basic'])
-    
+    # Fetch plan details from DB
+    plan = db['subscription_plans'].find_one({'name': subscription_data.plan})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plan not found in database")
     # Use custom price if provided, otherwise use default based on currency
     if subscription_data.custom_price:
         price = subscription_data.custom_price
     else:
         currency_lower = subscription_data.currency.lower()
         price_key = f'price_{currency_lower}'
-        price = plan_details.get(price_key, plan_details.get('price_inr', 99))
-    
+        price = plan.get(price_key, plan.get('price_inr', 99))
     # Create subscription document
     subscription_doc = {
         'subscription_name': subscription_data.subscription_name,
@@ -100,11 +101,11 @@ def create_subscription_plan(
         'price': price,
         'currency': subscription_data.currency,
         'description': subscription_data.description,
-        'features': plan_details.get('features', []),
-        'max_quality': plan_details.get('max_quality', '720p'),
-        'concurrent_streams': plan_details.get('concurrent_streams', 1),
-        'downloads_per_month': plan_details.get('downloads_per_month', 0),
-        'ad_free': plan_details.get('ad_free', False),
+        'features': plan.get('features', []),
+        'max_quality': plan.get('max_quality', '720p'),
+        'concurrent_streams': plan.get('concurrent_streams', 1),
+        'downloads_per_month': plan.get('downloads_per_month', 0),
+        'ad_free': plan.get('ad_free', False),
         'created_by': admin['user_id'],
         'created_at': datetime.now(),
         'updated_at': datetime.now()

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, ChevronDown } from "lucide-react";
+import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, ChevronDown } from "lucide-react";
 
 const mockVideos = [
   { id: 1, title: "Amazing sunset timelapse over the ocean waves", duration: "12:34", views: "1.2M" },
@@ -77,10 +77,6 @@ const BrowsePage = () => {
               <Link to="/browse" className="flex items-center gap-3 px-4 py-3 bg-secondary text-foreground rounded-lg">
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
-              </Link>
-              <Link to="/upload" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Upload className="w-5 h-5" />
-                <span>Upload</span>
               </Link>
               <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <User className="w-5 h-5" />

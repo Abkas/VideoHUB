@@ -178,3 +178,18 @@ def get_user_subscriptions(user_id: int):
         subscription.pop('_id')
     
     return subscriptions
+
+
+def get_all_subscription_plans():
+    """Get all active subscription plan definitions"""
+    plans = list(db['subscription_plans'].find({'is_active': True}).sort('price_inr', 1))
+    
+    # Convert to the format expected by frontend (keyed by plan name)
+    plans_dict = {}
+    for plan in plans:
+        plan_name = plan['name']
+        plan['id'] = str(plan['_id'])
+        plan.pop('_id')
+        plans_dict[plan_name] = plan
+    
+    return plans_dict

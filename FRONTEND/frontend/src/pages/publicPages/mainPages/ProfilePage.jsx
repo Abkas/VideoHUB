@@ -1,7 +1,6 @@
-import { getUserVideos } from "../../../api/publicAPI/videoApi";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload as UploadIcon, User, Settings, FileText, Shield, LogOut, Video, Heart, Bookmark, Users, UserPlus, Camera, Pencil } from "lucide-react";
+import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, Heart, Bookmark, Users, UserPlus, Camera, Pencil, Crown } from "lucide-react";
 import { verifyToken, uploadAvatar, deleteAvatar, updateUserProfile } from "../../../api/publicAPI/userApi";
 import { axiosInstance } from "../../../api/lib/axios";
 import { getMyFollowers, getMyFollowing, unfollowUser } from "../../../api/publicAPI/followerApi";
@@ -62,9 +61,8 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("videos");
+  const [activeTab, setActiveTab] = useState("liked");
   const [userData, setUserData] = useState(null);
-  const [userVideos, setUserVideos] = useState([]);
   const [likedVideos, setLikedVideos] = useState([]);
   const [savedVideos, setSavedVideos] = useState([]);
   const [followers, setFollowers] = useState([]);
@@ -85,13 +83,6 @@ const ProfilePage = () => {
         return;
       }
       setUserData(user);
-      // Fetch user's videos
-        try {
-          const data = await getUserVideos(user.id, 0, 50);
-          setUserVideos(data.videos || []);
-        } catch (err) {
-          setUserVideos([]);
-        }
       // Fetch followers and following
       try {
         const [followersData, followingData] = await Promise.all([
@@ -117,7 +108,6 @@ const ProfilePage = () => {
     fetchSavedVideos();
   }, [fetchUserData]);
 
-  // Removed debug console logs for followers/following
   useEffect(() => {
     fetchUserData();
     fetchLikedVideos();
@@ -231,8 +221,6 @@ const ProfilePage = () => {
 
   const getCurrentContent = () => {
     switch (activeTab) {
-      case "videos":
-        return userVideos;
       case "liked":
         return likedVideos;
       case "saved":
@@ -261,7 +249,7 @@ const ProfilePage = () => {
         <div className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4">
           <div className="flex items-center justify-between h-14">
             <Link to="/" className="text-xl font-bold text-primary">
-              StreamHub
+              VideoHUB
             </Link>
             
             <div className="flex items-center gap-2">
@@ -305,13 +293,13 @@ const ProfilePage = () => {
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
               </Link>
-              <Link to="/upload" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <UploadIcon className="w-5 h-5" />
-                <span>Upload</span>
-              </Link>
               <Link to="/profile" className="flex items-center gap-3 px-4 py-3 bg-secondary text-foreground rounded-lg">
                 <User className="w-5 h-5" />
                 <span>Profile</span>
+              </Link>
+              <Link to="/subscriptions" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
+                <Crown className="w-5 h-5" />
+                <span>Subscriptions</span>
               </Link>
               <Link to="/settings" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <Settings className="w-5 h-5" />
@@ -500,45 +488,11 @@ const ProfilePage = () => {
                     <span className="text-muted-foreground">Following</span>
                   </button>
                 </div>
-
-                {/* Videos and Views Stats */}
-                <div className="flex items-center gap-8 text-center pt-2 border-t border-border w-full justify-center">
-                  <div>
-                    <div className="flex items-center gap-2 text-foreground">
-                      <Video className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-lg font-bold">{userVideos.length}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">Videos</div>
-                  </div>
-                  <div className="w-px h-8 bg-border" />
-                  <div>
-                    <div className="flex items-center gap-2 text-foreground">
-                      <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                      <span className="text-lg font-bold">{formatViews(userData.total_views || 0)}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">Total Views</div>
-                  </div>
-                </div>
               </div>
             </div>
 
             {/* Tabs */}
             <div className="flex gap-2 border-b border-border mb-6">
-              <button
-                onClick={() => handleTabChange("videos")}
-                className={`pb-3 px-4 text-sm font-medium transition-all flex items-center gap-2 ${
-                  activeTab === "videos"
-                    ? "text-primary border-b-2 border-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Video className="w-4 h-4" />
-                <span>Videos</span>
-                <span className="text-xs bg-secondary px-2 py-0.5 rounded-full">{userVideos.length}</span>
-              </button>
               <button
                 onClick={() => handleTabChange("liked")}
                 className={`pb-3 px-4 text-sm font-medium transition-all flex items-center gap-2 ${
@@ -573,37 +527,22 @@ const ProfilePage = () => {
             {currentContent.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-4">
                 <div className="bg-secondary/50 rounded-full p-8 mb-6">
-                  {activeTab === "videos" ? (
-                    <Video className="w-16 h-16 text-muted-foreground" />
-                  ) : activeTab === "liked" ? (
+                  {activeTab === "liked" ? (
                     <Heart className="w-16 h-16 text-muted-foreground" />
                   ) : (
                     <Bookmark className="w-16 h-16 text-muted-foreground" />
                   )}
                 </div>
                 <h3 className="text-xl font-semibold text-foreground mb-2">
-                  {activeTab === "videos" 
-                    ? "No videos yet" 
-                    : activeTab === "liked"
+                  {activeTab === "liked"
                     ? "No liked videos"
                     : "No saved videos"}
                 </h3>
                 <p className="text-muted-foreground text-center mb-6 max-w-md">
-                  {activeTab === "videos" 
-                    ? "Start your content creation journey by uploading your first video!"
-                    : activeTab === "liked"
+                  {activeTab === "liked"
                     ? "Videos you like will appear here for easy access."
                     : "Save videos to watch later and they'll appear here."}
                 </p>
-                {activeTab === "videos" && (
-                  <Link
-                    to="/upload"
-                    className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium"
-                  >
-                    <UploadIcon className="w-5 h-5" />
-                    Upload Your First Video
-                  </Link>
-                )}
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

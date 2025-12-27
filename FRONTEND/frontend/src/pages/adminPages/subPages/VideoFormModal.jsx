@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Upload, X, Save, Plus } from 'lucide-react';
-import { uploadVideo, uploadThumbnail } from '../../../api/publicAPI/videoApi';
+import { uploadVideo, uploadThumbnail } from '../../../api/adminAPI/videoApi';
 import { createCategory, createTag } from '../../../api/adminAPI/categoryTagApi';
 import toast from 'react-hot-toast';
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Shield, ArrowLeft, Plus, Search, X, Tag as TagIcon, Eye } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
-import { createVideo, updateVideo, deleteVideo } from "../../../api/publicAPI/videoApi";
+import { createVideo, updateVideo, deleteVideo } from "../../../api/adminAPI/videoApi";
 import { getAllVideos as getAllVideosAdmin } from "../../../api/adminAPI/videoApi";
 import { getAllCategories, getAllTags } from "../../../api/adminAPI/categoryTagApi";
 import toast, { Toaster } from 'react-hot-toast';

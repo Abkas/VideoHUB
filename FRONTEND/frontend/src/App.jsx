@@ -6,10 +6,9 @@ import VideoPreviewPage from "./pages/publicPages/mainPages/VideoPreviewPage";
 import LoginPage from "./pages/publicPages/mainPages/LoginPage";
 import RegisterPage from "./pages/publicPages/mainPages/RegisterPage";
 import ProfilePage from "./pages/publicPages/mainPages/ProfilePage";
-import UserVideosDetail from "./pages/publicPages/subPages/UserVideosDetail";
 import PublicUserProfilePage from "./pages/publicPages/mainPages/PublicUserProfilePage";
-import UploadPage from "./pages/publicPages/mainPages/UploadPage";
 import UserAccountSetting from "./pages/publicPages/mainPages/UserAccountSetting";
+import UserSubscriptionsPage from "./pages/publicPages/mainPages/UserSubscriptionsPage";
 import Guidelines from "./pages/publicPages/subPages/Guidelines";
 import Terms from "./pages/publicPages/subPages/Terms";
 import PrivacyPage from "./pages/publicPages/subPages/PrivacyPage";
@@ -35,9 +34,8 @@ const App = () => (
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/profile/videos/:videoId" element={<UserVideosDetail />} />
+        <Route path="/subscriptions" element={<UserSubscriptionsPage />} />
         <Route path="/user/:id" element={<PublicUserProfilePage />} />
-        <Route path="/upload" element={<UploadPage />} />
         <Route path="/settings" element={<UserAccountSetting />} />
         <Route path="/guidelines" element={<Guidelines />} />
         <Route path="/terms" element={<Terms />} />

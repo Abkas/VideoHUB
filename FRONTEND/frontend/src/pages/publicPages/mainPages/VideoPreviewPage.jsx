@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, Upload, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send, UserPlus, UserCheck } from "lucide-react";
+import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send, UserPlus, UserCheck } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import { getVideoById, incrementVideoView, getTrendingVideos } from "../../../api/publicAPI/videoApi";
 import { likeVideo, removeLike, getLikeStatus } from "../../../api/publicAPI/likeApi";
@@ -437,10 +437,6 @@ const VideoPreviewPage = () => {
               <Link to="/browse" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <Grid className="w-5 h-5" />
                 <span>Browse</span>
-              </Link>
-              <Link to="/upload" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Upload className="w-5 h-5" />
-                <span>Upload</span>
               </Link>
               <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
                 <User className="w-5 h-5" />
