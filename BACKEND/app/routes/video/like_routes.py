@@ -42,6 +42,13 @@ def get_my_liked_videos_list(skip: int = 0, limit: int = 20, current_user: dict 
     return {"videos": videos, "count": len(videos)}
 
 
+@router.get("/user/{user_id}")
+def get_user_liked_videos_list(user_id: str, skip: int = 0, limit: int = 20):
+    """Get videos liked by a specific user"""
+    videos = get_user_liked_videos(user_id, skip, limit)
+    return {"videos": videos, "count": len(videos)}
+
+
 @router.get("/video/{video_id}/status")
 def get_user_like_status(video_id: str, current_user: dict = Depends(get_current_user)):
     """Check if current user liked/disliked this video"""

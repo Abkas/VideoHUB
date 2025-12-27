@@ -89,7 +89,10 @@ def get_followers(user_id: str, skip: int = 0, limit: int = 1000):
         follower['id'] = str(follower['_id'])
         follower.pop('_id')
         # Get follower user details
-        user = db['users'].find_one({'user_id': str(follower['follower_id'])})
+        try:
+            user = db['users'].find_one({'_id': ObjectId(follower['follower_id'])})
+        except Exception:
+            user = None
         if user:
             follower['follower_username'] = user.get('username')
             follower['follower_display_name'] = user.get('display_name')

@@ -1,13 +1,12 @@
 
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send, UserPlus, UserCheck } from "lucide-react";
+import { Menu, X, Search, Home, Grid, User, Settings, FileText, Shield, LogOut, ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, ChevronDown, ChevronUp, Play, Send } from "lucide-react";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import { getVideoById, incrementVideoView, getTrendingVideos } from "../../../api/publicAPI/videoApi";
 import { likeVideo, removeLike, getLikeStatus } from "../../../api/publicAPI/likeApi";
 import { createComment, getVideoComments, updateComment, deleteComment } from "../../../api/publicAPI/commentApi";
 import { saveVideo, unsaveVideo, getSaveStatus } from "../../../api/publicAPI/savedVideoApi";
-import { followUser, unfollowUser, checkIsFollowing } from "../../../api/publicAPI/followerApi";
 import toast from "react-hot-toast";
 
 const VideoPreviewPage = () => {
@@ -23,7 +22,6 @@ const VideoPreviewPage = () => {
   // Interactive features state
   const [likeStatus, setLikeStatus] = useState(null); // null, 'like', or 'dislike'
   const [isSaved, setIsSaved] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
   const [localLikes, setLocalLikes] = useState(0);
   const [localDislikes, setLocalDislikes] = useState(0);
   const [comments, setComments] = useState([]);
@@ -136,23 +134,6 @@ const VideoPreviewPage = () => {
     }
   }, [id, isAuthenticated, navigate]);
 
-  useEffect(() => {
-    const fetchFollowStatus = async () => {
-      if (!video?.uploader_id) return;
-      try {
-        const data = await checkIsFollowing(video.uploader_id);
-        setIsFollowing(data.is_following || false);
-      } catch {
-        setIsFollowing(false);
-      }
-    };
-    if (video && video.uploader_id && isAuthenticated && user) {
-      if (video.uploader_id !== user.user_id) {
-        fetchFollowStatus();
-      }
-    }
-  }, [video, isAuthenticated, user]);
-
   const fetchVideo = async () => {
     try {
       setLoading(true);
@@ -217,37 +198,6 @@ const VideoPreviewPage = () => {
       setIsFollowing(data.is_following || false);
     } catch {
       setIsFollowing(false);
-    }
-  };
-
-  const handleFollow = async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to follow creators');
-      return;
-    }
-
-    if (!video?.uploader_id) return;
-
-    try {
-      if (isFollowing) {
-        await unfollowUser(video.uploader_id);
-        setIsFollowing(false);
-        toast.success('Unfollowed');
-        setVideo(prev => prev ? {
-          ...prev,
-          uploader_followers_count: Math.max(0, (prev.uploader_followers_count || 1) - 1)
-        } : prev);
-      } else {
-        await followUser(video.uploader_id);
-        setIsFollowing(true);
-        toast.success('Following!');
-        setVideo(prev => prev ? {
-          ...prev,
-          uploader_followers_count: (prev.uploader_followers_count || 0) + 1
-        } : prev);
-      }
-    } catch {
-      toast.error('Could not update follow status');
     }
   };
 
@@ -519,59 +469,6 @@ const VideoPreviewPage = () => {
               </div>
             )}
           </div>
-
-          {/* Uploader Info */}
-          {video.uploader_username && (
-            <div className="px-2 sm:px-3 md:px-4 py-4 border-b border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Link 
-                    to={`/user/${video.uploader_id}`}
-                    className="w-12 h-12 bg-gradient-to-br from-primary/20 to-primary/10 rounded-full flex items-center justify-center hover:scale-105 transition-transform flex-shrink-0 overflow-hidden"
-                  >
-                    {video.uploader_profile_picture ? (
-                      <img src={video.uploader_profile_picture} alt={video.uploader_username} className="w-full h-full object-cover" />
-                    ) : (
-                      <User className="w-6 h-6 text-primary" />
-                    )}
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link 
-                      to={`/user/${video.uploader_id}`}
-                      className="font-semibold text-foreground hover:text-primary transition-colors block truncate"
-                    >
-                      {video.uploader_display_name || video.uploader_username}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">
-                      {video.uploader_followers_count ? `${video.uploader_followers_count} followers` : 'Content Creator'}
-                    </p>
-                  </div>
-                </div>
-                {isAuthenticated && user && video.uploader_id !== user.user_id && (
-                  <button
-                    onClick={handleFollow}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all flex-shrink-0 ${
-                      isFollowing
-                        ? 'bg-secondary text-foreground hover:bg-secondary/80'
-                        : 'bg-primary text-primary-foreground hover:opacity-90'
-                    }`}
-                  >
-                    {isFollowing ? (
-                      <>
-                        <UserCheck className="w-4 h-4" />
-                        <span>Following</span>
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="w-4 h-4" />
-                        <span>Follow</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Action Row */}
           <div className="px-2 sm:px-3 md:px-4 py-4 border-b border-border">

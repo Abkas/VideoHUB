@@ -1,10 +1,11 @@
 
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { User, Video, Users, UserPlus, UserCheck, Menu, X, Search, Home, Grid, Upload as UploadIcon, Settings, FileText, Shield, LogOut } from "lucide-react";
+import { User, Video, Users, UserPlus, UserCheck, Menu, X, Search, Home, Grid, Upload as UploadIcon, Settings, FileText, Shield, LogOut, Heart } from "lucide-react";
 import { axiosInstance } from "../../../api/lib/axios";
 import VideoCard from "../../../components/VideoCard";
 import { getUserFollowers, getUserFollowing, checkIsFollowing, followUser, unfollowUser } from "../../../api/publicAPI/followerApi";
+import { getUserLikedVideos } from "../../../api/publicAPI/likeApi";
 import { useAuthorizer } from "../../../Auth/Authorizer";
 import toast from "react-hot-toast";
 
@@ -13,12 +14,14 @@ const PublicUserProfilePage = () => {
   const { id } = useParams();
   const { user: currentUser, isAuthenticated } = useAuthorizer();
   const [user, setUser] = useState(null);
-  const [videos, setVideos] = useState([]);
+  const [likedVideos, setLikedVideos] = useState([]);
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -26,19 +29,19 @@ const PublicUserProfilePage = () => {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [userRes, videosRes, followersRes, followingRes] = await Promise.all([
+        const [userRes, likedVideosRes, followersRes, followingRes] = await Promise.all([
           axiosInstance.get(`/users/${id}`),
-          axiosInstance.get(`/videos/user/${id}`),
+          getUserLikedVideos(id),
           getUserFollowers(id),
           getUserFollowing(id)
         ]);
         setUser(userRes.data);
-        setVideos(videosRes.data.videos || []);
+        setLikedVideos(likedVideosRes.videos || []);
         setFollowers(followersRes || []);
         setFollowing(followingRes || []);
       } catch {
         setUser(null);
-        setVideos([]);
+        setLikedVideos([]);
         setFollowers([]);
         setFollowing([]);
       }
@@ -212,59 +215,51 @@ const PublicUserProfilePage = () => {
           </div>
           {/* Followers and Following Row */}
           <div className="flex items-center gap-6 mt-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
+            <button
+              onClick={() => setShowFollowersModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+            >
               <Users className="w-4 h-4" />
               <span className="font-semibold">{followers.length}</span>
               <span className="text-muted-foreground">Followers</span>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg">
+            </button>
+            <button
+              onClick={() => setShowFollowingModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
+            >
               <UserPlus className="w-4 h-4" />
               <span className="font-semibold">{following.length}</span>
               <span className="text-muted-foreground">Following</span>
-            </div>
-          </div>
-          {/* Videos and Views Stats */}
-          <div className="flex items-center gap-8 text-center pt-2 border-t border-border w-full justify-center mt-4">
-            <div>
-              <div className="flex items-center gap-2 text-foreground">
-                <Video className="w-4 h-4 text-muted-foreground" />
-                <span className="text-lg font-bold">{videos.length}</span>
-              </div>
-              <div className="text-sm text-muted-foreground">Videos</div>
-            </div>
-            {/* Optionally add total views if available */}
-            {typeof user.total_views !== 'undefined' && (
-              <>
-                <div className="w-px h-8 bg-border" />
-                <div>
-                  <div className="flex items-center gap-2 text-foreground">
-                    <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    <span className="text-lg font-bold">{user.total_views || 0}</span>
-                  </div>
-                  <div className="text-sm text-muted-foreground">Total Views</div>
-                </div>
-              </>
-            )}
+            </button>
           </div>
         </div>
       </div>
-        {/* Videos Grid - dark section like ProfilePage */}
+        {/* Liked Videos Grid */}
         <div className="mt-8">
           <div className="bg-muted rounded-xl p-6">
-            {videos.length === 0 ? (
+            {/* Liked Videos Header */}
+            {likedVideos.length > 0 && (
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Heart className="w-5 h-5 text-primary fill-current" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-foreground">Liked Videos</h2>
+                  <p className="text-sm text-muted-foreground">Videos this user has liked</p>
+                </div>
+              </div>
+            )}
+            {likedVideos.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 px-4">
                 <div className="bg-secondary/50 rounded-full p-8 mb-6">
-                  <Video className="w-16 h-16 text-muted-foreground" />
+                  <Heart className="w-16 h-16 text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">No videos yet</h3>
-                <p className="text-muted-foreground text-center mb-6 max-w-md">This user hasn't uploaded any videos yet.</p>
+                <h3 className="text-xl font-semibold text-foreground mb-2">No liked videos yet</h3>
+                <p className="text-muted-foreground text-center mb-6 max-w-md">This user hasn't liked any videos yet.</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {videos.map((video) => (
+                {likedVideos.map((video) => (
                   <div className="bg-card rounded-lg overflow-hidden shadow border border-border" key={video.id || video._id}>
                     <VideoCard video={video} />
                   </div>
@@ -274,6 +269,136 @@ const PublicUserProfilePage = () => {
           </div>
         </div>
       </main>
+
+      {/* Followers Modal */}
+      {showFollowersModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowFollowersModal(false)}
+          />
+          <div className="relative bg-card rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Followers ({followers.length})
+              </h3>
+              <button
+                onClick={() => setShowFollowersModal(false)}
+                className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
+              {followers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4">
+                  <Users className="w-12 h-12 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-center">No followers yet</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {followers.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-3 hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      <Link
+                        to={`/user/${item.follower_id}`}
+                        onClick={() => setShowFollowersModal(false)}
+                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      >
+                        {item.follower_avatar_url ? (
+                          <img src={item.follower_avatar_url} alt="avatar" className="w-10 h-10 object-cover rounded-full" />
+                        ) : (
+                          <User className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/user/${item.follower_id}`}
+                          onClick={() => setShowFollowersModal(false)}
+                          className="block"
+                        >
+                          <h4 className="font-medium text-foreground truncate">
+                            {item.follower_display_name || item.follower_username}
+                          </h4>
+                          <p className="text-sm text-muted-foreground truncate">@{item.follower_username || 'unknown'}</p>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Following Modal */}
+      {showFollowingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowFollowingModal(false)}
+          />
+          <div className="relative bg-card rounded-lg w-full max-w-md max-h-[80vh] overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <UserPlus className="w-5 h-5" />
+                Following ({following.length})
+              </h3>
+              <button
+                onClick={() => setShowFollowingModal(false)}
+                className="p-2 hover:bg-secondary rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(80vh-80px)]">
+              {following.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-4">
+                  <UserPlus className="w-12 h-12 text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground text-center">Not following anyone yet</p>
+                </div>
+              ) : (
+                <div className="p-4 space-y-3">
+                  {following.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-3 hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      <Link
+                        to={`/user/${item.following_id}`}
+                        onClick={() => setShowFollowingModal(false)}
+                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden"
+                      >
+                        {item.following_avatar_url ? (
+                          <img src={item.following_avatar_url} alt="avatar" className="w-10 h-10 object-cover rounded-full" />
+                        ) : (
+                          <User className="w-5 h-5 text-muted-foreground" />
+                        )}
+                      </Link>
+                      <div className="flex-1 min-w-0">
+                        <Link
+                          to={`/user/${item.following_id}`}
+                          onClick={() => setShowFollowingModal(false)}
+                          className="block"
+                        >
+                          <h4 className="font-medium text-foreground truncate">
+                            {item.following_display_name || item.following_username}
+                          </h4>
+                          <p className="text-sm text-muted-foreground truncate">@{item.following_username || 'unknown'}</p>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -47,6 +47,17 @@ export const getMyLikedVideos = async (skip = 0, limit = 20) => {
   }
 };
 
+// Get videos liked by a specific user
+export const getUserLikedVideos = async (userId, skip = 0, limit = 20) => {
+  try {
+    const response = await axiosInstance.get(`/likes/user/${userId}?skip=${skip}&limit=${limit}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user liked videos:', error);
+    throw error;
+  }
+};
+
 // Get all likes for a video
 export const getVideoLikes = async (videoId, skip = 0, limit = 100) => {
   try {
