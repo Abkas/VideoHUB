@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from app.core.security import get_admin_user, get_current_user
 from app.core.database import client
-from app.core.cloudinary_config import upload_to_cloudinary
+from app.core.cloudinary_config import delete_from_cloudinary, extract_public_id_from_url
 from app.services.utility.category_services import update_category_video_count
 from app.services.utility.tag_services import update_tag_video_count
 from bson import ObjectId
@@ -299,12 +299,32 @@ def delete_admin_video(
 ):
     """Delete any video (admin only)"""
     try:
-        # Get the video first to get its categories and tags
+        # Get the video first to get its URLs and categories/tags
         video = db['videos'].find_one({'_id': ObjectId(video_id)})
         if not video:
             raise HTTPException(status_code=404, detail="Video not found")
         
-        # Delete the video
+        # Delete video file from Cloudinary if it exists
+        if video.get('video_url'):
+            video_public_id = extract_public_id_from_url(video['video_url'])
+            if video_public_id:
+                try:
+                    delete_from_cloudinary(video_public_id, resource_type="video")
+                except Exception as e:
+                    # Log but don't fail the deletion if Cloudinary delete fails
+                    print(f"Warning: Failed to delete video from Cloudinary: {str(e)}")
+        
+        # Delete thumbnail from Cloudinary if it exists
+        if video.get('thumbnail_url'):
+            thumbnail_public_id = extract_public_id_from_url(video['thumbnail_url'])
+            if thumbnail_public_id:
+                try:
+                    delete_from_cloudinary(thumbnail_public_id, resource_type="image")
+                except Exception as e:
+                    # Log but don't fail the deletion if Cloudinary delete fails
+                    print(f"Warning: Failed to delete thumbnail from Cloudinary: {str(e)}")
+        
+        # Delete the video from database
         result = db['videos'].delete_one({'_id': ObjectId(video_id)})
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Video not found")
@@ -323,6 +343,22 @@ def delete_admin_video(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.put('/videos/{video_id}/metadata')
+def update_video_metadata(
+    video_id: str,
+    metadata: dict,
+    current_user: dict = Depends(get_admin_user)
+):
+    """Update video metadata (duration, format, etc.)"""
+    try:
+        from app.services.video.video_services import update_video_metadata as update_metadata_service
+        success = update_metadata_service(video_id, metadata)
+        if not success:
+            raise HTTPException(status_code=404, detail="Video not found or no updates made")
+        return {"message": "Video metadata updated successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.post('/upload/video')
 async def upload_video_file(
     file: UploadFile = File(...),
@@ -336,14 +372,23 @@ async def upload_video_file(
         # Upload to Cloudinary and get metadata
         metadata = upload_to_cloudinary(content, resource_type="video", folder="videohub/videos")
         
+        # If duration is not available from Cloudinary, try to estimate it
+        duration = metadata.get('duration', 0)
+        if not duration and metadata.get('bytes'):
+            # Rough estimation: assume 1MB = ~1 second for video (very rough)
+            # This is just a fallback - real duration should come from Cloudinary
+            estimated_duration = max(1, metadata['bytes'] // (1024 * 1024))  # At least 1 second
+            duration = estimated_duration
+        
         return {
             "url": metadata['secure_url'],
-            "duration": metadata.get('duration', 0),
+            "duration": duration,
             "format": metadata.get('format'),
             "width": metadata.get('width'),
             "height": metadata.get('height'),
             "bit_rate": metadata.get('bit_rate'),
             "bytes": metadata.get('bytes'),
+            "public_id": metadata.get('public_id'),
             "message": "Video uploaded successfully"
         }
     except Exception as e:

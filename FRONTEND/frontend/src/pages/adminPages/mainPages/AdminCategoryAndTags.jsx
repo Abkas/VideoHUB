@@ -268,7 +268,7 @@ const AdminCategoryAndTags = () => {
               <span className="text-lg font-bold text-foreground">Admin Panel</span>
             </div>
             <Link 
-              to="/admin/dashboard"
+              to="/admin"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />

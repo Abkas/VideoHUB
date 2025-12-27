@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from app.core.database import client
 from bson.objectid import ObjectId
 from datetime import datetime
+from app.core.cloudinary_config import delete_from_cloudinary, extract_public_id_from_url
 
 db = client['videohub']
 
@@ -149,8 +150,51 @@ def delete_video(video_id, user_id, is_admin=False):
         raise HTTPException(status_code=404, detail="Video not found")
     if video.get('uploader_id') != user_id and not is_admin:
         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Delete video file from Cloudinary if it exists
+    if video.get('video_url'):
+        video_public_id = extract_public_id_from_url(video['video_url'])
+        if video_public_id:
+            try:
+                delete_from_cloudinary(video_public_id, resource_type="video")
+            except Exception as e:
+                # Log but don't fail the deletion if Cloudinary delete fails
+                print(f"Warning: Failed to delete video from Cloudinary: {str(e)}")
+    
+    # Delete thumbnail from Cloudinary if it exists
+    if video.get('thumbnail_url'):
+        thumbnail_public_id = extract_public_id_from_url(video['thumbnail_url'])
+        if thumbnail_public_id:
+            try:
+                delete_from_cloudinary(thumbnail_public_id, resource_type="image")
+            except Exception as e:
+                # Log but don't fail the deletion if Cloudinary delete fails
+                print(f"Warning: Failed to delete thumbnail from Cloudinary: {str(e)}")
+    
     result = db['videos'].delete_one({'_id': ObjectId(video_id)})
     return result.deleted_count > 0
+
+
+def update_video_metadata(video_id, metadata):
+    """Update video metadata (duration, format, etc.)"""
+    update_data = {}
+    
+    if 'duration' in metadata and metadata['duration']:
+        update_data['duration'] = metadata['duration']
+    if 'format' in metadata and metadata['format']:
+        update_data['format'] = metadata['format']
+    if 'width' in metadata and metadata['width']:
+        update_data['width'] = metadata['width']
+    if 'height' in metadata and metadata['height']:
+        update_data['height'] = metadata['height']
+    
+    if update_data:
+        result = db['videos'].update_one(
+            {'_id': ObjectId(video_id)},
+            {'$set': update_data}
+        )
+        return result.modified_count > 0
+    return False
 
 
 def increment_video_view(video_id):

@@ -57,19 +57,19 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
       // Debug Cloudinary response
       console.log('Cloudinary upload response:', response);
       // Extract video metadata from Cloudinary response
-      const duration = response.metadata?.duration || 0;
+      const duration = response.duration || response.metadata?.duration || 0;
       setVideo({ 
         ...video, 
         video_url: response.url,
-        duration: Math.round(duration)
+        duration: Math.round(duration) || 1  // Ensure at least 1 second
       });
 
       // Store metadata for display
       setVideoMetadata({
-        duration: Math.round(duration),
-        format: response.metadata?.format,
-        resolution: response.metadata?.width && response.metadata?.height ? `${response.metadata.width}x${response.metadata.height}` : null,
-        size: response.metadata?.bytes ? `${(response.metadata.bytes / (1024 * 1024)).toFixed(2)} MB` : null
+        duration: Math.round(duration) || 1,
+        format: response.format || response.metadata?.format,
+        resolution: response.width && response.height ? `${response.width}x${response.height}` : null,
+        size: response.bytes ? `${(response.bytes / (1024 * 1024)).toFixed(2)} MB` : null
       });
 
       toast.success('Video uploaded successfully');
@@ -257,12 +257,14 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
                 <input
                   type="number"
                   value={video.duration}
-                  className="w-full px-4 py-2 bg-secondary/50 border border-border rounded-lg text-foreground cursor-not-allowed"
-                  placeholder="Auto-filled from video"
-                  readOnly
-                  disabled
+                  onChange={(e) => setVideo({ ...video, duration: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-secondary/50 border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  placeholder="Enter duration in seconds"
+                  min="1"
                 />
-                <p className="text-xs text-muted-foreground mt-1">✓ Automatically extracted from video file</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {videoMetadata.duration ? `✓ Auto-detected: ${videoMetadata.duration}s` : 'Enter video duration manually'}
+                </p>
               </div>
             </>
           )}

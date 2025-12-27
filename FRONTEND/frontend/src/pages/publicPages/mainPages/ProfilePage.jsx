@@ -108,12 +108,6 @@ const ProfilePage = () => {
     fetchSavedVideos();
   }, [fetchUserData]);
 
-  useEffect(() => {
-    fetchUserData();
-    fetchLikedVideos();
-    fetchSavedVideos();
-  }, [fetchUserData]);
-
   const fetchLikedVideos = async () => {
     if (likedVideos.length > 0) return; // Already loaded
     
@@ -198,7 +192,8 @@ const ProfilePage = () => {
   const handleDeleteAvatar = async () => {
     try {
       await deleteAvatar();
-      setUserData(prev => ({ ...prev, profile_picture: null }));
+      // Refresh user data from backend to ensure consistency
+      await fetchUserData();
       toast.success('Avatar removed');
     } catch {
       toast.error('Failed to remove avatar');

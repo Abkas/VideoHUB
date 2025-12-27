@@ -4,6 +4,7 @@ from app.core.security import hash_password, verify_password, create_access_toke
 from bson.objectid import ObjectId
 from datetime import datetime
 from app.model.user.user_model import User
+from app.core.cloudinary_config import delete_from_cloudinary, extract_public_id_from_url
 
 
 
@@ -63,5 +64,31 @@ def update_user(user_id, update_data):
     return get_user_by_id(user_id)
 
 def delete_user(user_id):
+    # Get user to check for avatar and cover image
+    user = db["users"].find_one({"_id": ObjectId(user_id)})
+    if not user:
+        return False
+
+    # Delete avatar from Cloudinary if it exists
+    if user.get('profile_picture'):
+        avatar_public_id = extract_public_id_from_url(user['profile_picture'])
+        if avatar_public_id:
+            try:
+                delete_from_cloudinary(avatar_public_id, resource_type="image")
+            except Exception as e:
+                # Log but don't fail the deletion if Cloudinary delete fails
+                print(f"Warning: Failed to delete user avatar from Cloudinary: {str(e)}")
+
+    # Delete cover image from Cloudinary if it exists
+    if user.get('cover_image'):
+        cover_public_id = extract_public_id_from_url(user['cover_image'])
+        if cover_public_id:
+            try:
+                delete_from_cloudinary(cover_public_id, resource_type="image")
+            except Exception as e:
+                # Log but don't fail the deletion if Cloudinary delete fails
+                print(f"Warning: Failed to delete user cover image from Cloudinary: {str(e)}")
+
+    # Delete user from database
     result = db["users"].delete_one({"_id": ObjectId(user_id)})
     return result.deleted_count > 0

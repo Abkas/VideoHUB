@@ -172,8 +172,6 @@ const AdminVideoManagement = () => {
   };
 
   const handleDeleteVideo = async (videoId) => {
-    if (!window.confirm('Are you sure you want to delete this video?')) return;
-
     try {
       await deleteVideo(videoId);
       toast.success('Video deleted successfully', {
@@ -229,7 +227,7 @@ const AdminVideoManagement = () => {
               <span className="text-lg font-bold text-foreground">Admin Panel</span>
             </div>
             <Link 
-              to="/admin/dashboard"
+              to="/admin"
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />

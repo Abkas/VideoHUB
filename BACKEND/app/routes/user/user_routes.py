@@ -7,6 +7,7 @@ from app.core.database import client
 from datetime import datetime
 import cloudinary.uploader
 from bson.objectid import ObjectId
+from app.core.cloudinary_config import delete_from_cloudinary, extract_public_id_from_url
 
 
 
@@ -113,7 +114,22 @@ async def upload_avatar(
 @router.delete('/me/avatar')
 def delete_avatar(current_user: dict = Depends(get_current_user)):
     """Remove user avatar"""
-    from bson.objectid import ObjectId
+    # Get current user to check if they have an avatar
+    user = db['users'].find_one({'_id': ObjectId(current_user['user_id'])})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Delete avatar from Cloudinary if it exists
+    if user.get('profile_picture'):
+        avatar_public_id = extract_public_id_from_url(user['profile_picture'])
+        if avatar_public_id:
+            try:
+                delete_from_cloudinary(avatar_public_id, resource_type="image")
+            except Exception as e:
+                # Log but don't fail the deletion if Cloudinary delete fails
+                print(f"Warning: Failed to delete avatar from Cloudinary: {str(e)}")
+
+    # Remove avatar from database
     db['users'].update_one(
         {'_id': ObjectId(current_user['user_id'])},
         {

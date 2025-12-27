@@ -13,7 +13,6 @@ import Guidelines from "./pages/publicPages/subPages/Guidelines";
 import Terms from "./pages/publicPages/subPages/Terms";
 import PrivacyPage from "./pages/publicPages/subPages/PrivacyPage";
 import ReportPage from "./pages/publicPages/subPages/ReportPage";
-import AdminLogin from "./pages/adminPages/mainPages/AdminLogin";
 import AdminDashboard from "./pages/adminPages/mainPages/AdminDashboard";
 import AdminVideoManagement from "./pages/adminPages/mainPages/AdminVideoManagement";
 import AdminUserManagement from "./pages/adminPages/mainPages/AdminUserManagement";
@@ -42,8 +41,7 @@ const App = () => (
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/report" element={<ReportPage />} />
         <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/videos" element={<AdminVideoManagement />} />
         <Route path="/admin/videos/:videoId" element={<VideoDetailPage />} />
         <Route path="/admin/users" element={<AdminUserManagement />} />
