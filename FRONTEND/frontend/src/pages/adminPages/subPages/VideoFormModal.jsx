@@ -114,10 +114,9 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
 
     try {
       setCreatingCategory(true);
-      const slug = newCategoryName.toLowerCase().replace(/\s+/g, '-');
+      // Let the backend auto-generate the slug
       const newCat = await createCategory({ 
-        name: newCategoryName, 
-        slug,
+        name: newCategoryName.trim(), 
         is_active: true 
       });
       setLocalCategories([...localCategories, newCat]);
@@ -139,10 +138,9 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
 
     try {
       setCreatingTag(true);
-      const slug = newTagName.toLowerCase().replace(/\s+/g, '-');
+      // Let the backend auto-generate the slug
       const newTag = await createTag({ 
-        name: newTagName, 
-        slug,
+        name: newTagName.trim(), 
         is_active: true 
       });
       setLocalTags([...localTags, newTag]);
@@ -263,7 +261,7 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
                   min="1"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  {videoMetadata.duration ? `✓ Auto-detected: ${videoMetadata.duration}s` : 'Enter video duration manually'}
+                  {videoMetadata && videoMetadata.duration ? `✓ Auto-detected: ${videoMetadata.duration}s` : 'Enter video duration manually'}
                 </p>
               </div>
             </>

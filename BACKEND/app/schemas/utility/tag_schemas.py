@@ -4,7 +4,7 @@ from typing import Optional
 
 class TagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=30)
-    slug: str = Field(..., min_length=1, max_length=30)
+    slug: Optional[str] = Field(None, min_length=1, max_length=30)  # Auto-generated if not provided
 
 
 class TagUpdate(BaseModel):

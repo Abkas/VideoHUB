@@ -121,13 +121,23 @@ def delete_avatar(current_user: dict = Depends(get_current_user)):
 
     # Delete avatar from Cloudinary if it exists
     if user.get('profile_picture'):
-        avatar_public_id = extract_public_id_from_url(user['profile_picture'])
+        avatar_url = user['profile_picture']
+        print(f"Attempting to delete avatar from Cloudinary: {avatar_url}")
+
+        avatar_public_id = extract_public_id_from_url(avatar_url)
+        print(f"Extracted public_id: {avatar_public_id}")
+
         if avatar_public_id:
             try:
-                delete_from_cloudinary(avatar_public_id, resource_type="image")
+                result = delete_from_cloudinary(avatar_public_id, resource_type="image")
+                print(f"Cloudinary deletion result: {result}")
             except Exception as e:
                 # Log but don't fail the deletion if Cloudinary delete fails
                 print(f"Warning: Failed to delete avatar from Cloudinary: {str(e)}")
+                # For debugging, let's raise the error to see what happens
+                raise HTTPException(status_code=500, detail=f"Failed to delete from Cloudinary: {str(e)}")
+        else:
+            print(f"Warning: Could not extract public_id from URL: {avatar_url}")
 
     # Remove avatar from database
     db['users'].update_one(

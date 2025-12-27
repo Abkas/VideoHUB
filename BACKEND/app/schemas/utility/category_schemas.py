@@ -4,7 +4,7 @@ from typing import Optional
 
 class CategoryCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
-    slug: str = Field(..., min_length=1, max_length=50)
+    slug: Optional[str] = Field(None, min_length=1, max_length=50)  # Auto-generated if not provided
     description: Optional[str] = Field(None, max_length=500)
     icon: Optional[str] = None
     color: Optional[str] = None

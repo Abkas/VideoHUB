@@ -11,8 +11,8 @@ import toast, { Toaster } from 'react-hot-toast';
 const AdminCategoryAndTags = () => {
   const [categories, setCategories] = useState([]);
   const [tags, setTags] = useState([]);
-  const [newCategory, setNewCategory] = useState({ name: "", slug: "", description: "", color: "#FF6B35" });
-  const [newTag, setNewTag] = useState({ name: "", slug: "" });
+  const [newCategory, setNewCategory] = useState({ name: "", description: "", color: "#FF6B35" });
+  const [newTag, setNewTag] = useState({ name: "" });
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingTag, setEditingTag] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -56,8 +56,8 @@ const AdminCategoryAndTags = () => {
   };
 
   const handleAddCategory = async () => {
-    if (!newCategory.name.trim() || !newCategory.slug.trim()) {
-      toast.error('Name and slug are required', {
+    if (!newCategory.name.trim()) {
+      toast.error('Category name is required', {
         style: {
           background: 'hsl(0 0% 11%)',
           color: 'hsl(0 0% 95%)',
@@ -76,7 +76,7 @@ const AdminCategoryAndTags = () => {
           border: '1px solid hsl(142 76% 36%)'
         }
       });
-      setNewCategory({ name: "", slug: "", description: "", color: "#FF6B35" });
+      setNewCategory({ name: "", description: "", color: "#FF6B35" });
       setShowAddCategoryForm(false);
       fetchData();
     } catch (error) {
@@ -138,8 +138,8 @@ const AdminCategoryAndTags = () => {
   };
 
   const handleAddTag = async () => {
-    if (!newTag.name.trim() || !newTag.slug.trim()) {
-      toast.error('Name and slug are required', {
+    if (!newTag.name.trim()) {
+      toast.error('Tag name is required', {
         style: {
           background: 'hsl(0 0% 11%)',
           color: 'hsl(0 0% 95%)',
@@ -158,7 +158,7 @@ const AdminCategoryAndTags = () => {
           border: '1px solid hsl(142 76% 36%)'
         }
       });
-      setNewTag({ name: "", slug: "" });
+      setNewTag({ name: "" });
       setShowAddTagForm(false);
       fetchData();
     } catch (error) {
@@ -357,7 +357,7 @@ const AdminCategoryAndTags = () => {
                   <button
                     onClick={() => {
                       setShowAddCategoryForm(false);
-                      setNewCategory({ name: "", slug: "", description: "", color: "#FF6B35" });
+                      setNewCategory({ name: "", description: "", color: "#FF6B35" });
                     }}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -374,35 +374,26 @@ const AdminCategoryAndTags = () => {
                   />
                   <input
                     type="text"
-                    value={newCategory.slug}
-                    onChange={(e) => setNewCategory({ ...newCategory, slug: e.target.value })}
-                    placeholder="Slug (e.g., technology)"
-                    className="px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    type="text"
                     value={newCategory.description}
                     onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
                     placeholder="Description (optional)"
-                    className="md:col-span-2 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <div className="flex gap-2">
-                    <input
-                      type="color"
-                      value={newCategory.color}
-                      onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
-                      className="w-12 h-10 bg-secondary border border-border rounded-lg cursor-pointer"
-                    />
-                    <button 
-                      onClick={handleAddCategory}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
-                    >
-                      <Save className="w-4 h-4" />
-                      <span>Save</span>
-                    </button>
-                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="color"
+                    value={newCategory.color}
+                    onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                    className="w-12 h-10 bg-secondary border border-border rounded-lg cursor-pointer"
+                  />
+                  <button 
+                    onClick={handleAddCategory}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+                  >
+                    <Save className="w-4 h-4" />
+                    <span>Save</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -523,7 +514,7 @@ const AdminCategoryAndTags = () => {
                   <button
                     onClick={() => {
                       setShowAddTagForm(false);
-                      setNewTag({ name: "", slug: "" });
+                      setNewTag({ name: "" });
                     }}
                     className="text-muted-foreground hover:text-foreground transition-colors"
                   >
@@ -536,13 +527,6 @@ const AdminCategoryAndTags = () => {
                     value={newTag.name}
                     onChange={(e) => setNewTag({ ...newTag, name: e.target.value })}
                     placeholder="Tag name"
-                    className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <input
-                    type="text"
-                    value={newTag.slug}
-                    onChange={(e) => setNewTag({ ...newTag, slug: e.target.value })}
-                    placeholder="Slug (e.g., web-development)"
                     className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <button 

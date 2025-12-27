@@ -2,6 +2,7 @@ from fastapi import HTTPException
 from app.core.database import client
 from bson.objectid import ObjectId
 from datetime import datetime
+from app.utils.slug_utils import create_slug, generate_unique_slug
 
 db = client['videohub']
 
@@ -9,12 +10,16 @@ db = client['videohub']
 def create_category(category_data):
     """Create a new category"""
     category_dict = category_data.dict()
-    
-    # Check if slug already exists
-    existing = db['categories'].find_one({'slug': category_dict['slug']})
-    if existing:
-        raise HTTPException(status_code=400, detail="Category with this slug already exists")
-    
+
+    # Auto-generate slug from name if not provided or empty
+    if not category_dict.get('slug') or not category_dict['slug'].strip():
+        base_slug = create_slug(category_dict['name'])
+        category_dict['slug'] = generate_unique_slug(base_slug, 'categories', db)
+    else:
+        # If slug is provided, clean it and ensure uniqueness
+        category_dict['slug'] = create_slug(category_dict['slug'])
+        category_dict['slug'] = generate_unique_slug(category_dict['slug'], 'categories', db)
+
     category_dict['created_at'] = datetime.now()
     category_dict['updated_at'] = datetime.now()
     category_dict['video_count'] = 0
@@ -61,16 +66,22 @@ def get_category_by_slug(slug):
 def update_category(category_id, update_data):
     """Update a category"""
     update_dict = update_data.dict(exclude_unset=True)
-    
+
     if 'slug' in update_dict:
-        # Check if new slug already exists
-        existing = db['categories'].find_one({
-            'slug': update_dict['slug'],
-            '_id': {'$ne': ObjectId(category_id)}
-        })
-        if existing:
-            raise HTTPException(status_code=400, detail="Category with this slug already exists")
-    
+        # Clean and validate the slug
+        if update_dict['slug'] and update_dict['slug'].strip():
+            update_dict['slug'] = create_slug(update_dict['slug'])
+            # Ensure uniqueness, excluding current category
+            update_dict['slug'] = generate_unique_slug(update_dict['slug'], 'categories', db, category_id)
+        else:
+            # If slug is empty, auto-generate from name if name is being updated
+            if 'name' in update_dict and update_dict['name']:
+                base_slug = create_slug(update_dict['name'])
+                update_dict['slug'] = generate_unique_slug(base_slug, 'categories', db, category_id)
+            else:
+                # Remove empty slug from update
+                del update_dict['slug']
+
     update_dict['updated_at'] = datetime.now()
     
     result = db['categories'].update_one(

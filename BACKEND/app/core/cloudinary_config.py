@@ -60,15 +60,30 @@ def extract_public_id_from_url(url):
             
         # Split by '/' and find the public_id (usually the last part before extension)
         parts = url.split('/')
+        
+        # Find the 'upload' part and everything after it until the file extension
+        try:
+            upload_index = parts.index('upload')
+            # Everything after 'upload' until the last part (which has the extension)
+            path_parts = parts[upload_index + 1:]  # Skip 'upload'
+            
+            # Remove version if it starts with 'v' followed by numbers
+            if path_parts and path_parts[0].startswith('v') and path_parts[0][1:].isdigit():
+                path_parts = path_parts[1:]  # Remove version
+            
+            if path_parts:
+                # Join all remaining parts and remove extension
+                full_path = '/'.join(path_parts)
+                public_id = full_path.split('.')[0]  # Remove extension
+                return public_id
+                
+        except ValueError:
+            # 'upload' not found, try alternative approach
+            pass
+            
+        # Fallback: get the last part before extension
         filename = parts[-1]  # Get the last part
         public_id_with_ext = filename.split('.')[0]  # Remove extension
-        
-        # Remove version if present (starts with 'v')
-        if public_id_with_ext.startswith('v'):
-            # Find the next part that contains the actual public_id
-            version_index = parts.index('upload') + 2  # version is usually 2 parts after 'upload'
-            if version_index < len(parts):
-                public_id_with_ext = parts[version_index].split('.')[0]
         
         return public_id_with_ext
     except:
