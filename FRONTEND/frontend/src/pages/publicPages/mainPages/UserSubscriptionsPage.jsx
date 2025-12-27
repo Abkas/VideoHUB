@@ -13,11 +13,8 @@ export default function UserSubscriptionsPage() {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [extending, setExtending] = useState(null);
-  const [showExtendModal, setShowExtendModal] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  // Store previous countdown for optimistic update rollback
   const previousCountdownRef = useRef(0);
-  // Track if we're in an optimistic update state
   const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
 
   useEffect(() => {
@@ -147,7 +144,6 @@ export default function UserSubscriptionsPage() {
       }
       
       toast.success(previousCountdownRef.current > 0 ? 'Subscription extended successfully!' : 'Subscription purchased successfully!');
-      setShowExtendModal(false);
       
       // Refresh status to ensure sync
       await fetchStatus();
@@ -350,7 +346,13 @@ export default function UserSubscriptionsPage() {
               {/* Extend Button */}
               <div className="text-center">
                 <button
-                  onClick={() => setShowExtendModal(true)}
+                  onClick={() => {
+                    // Scroll to the available plans section
+                    const plansSection = document.querySelector('[data-plans-section]');
+                    if (plansSection) {
+                      plansSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }}
                   className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground rounded-xl font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200 shadow-md"
                 >
                   <Plus className="w-5 h-5" />
@@ -373,7 +375,7 @@ export default function UserSubscriptionsPage() {
 
         {/* Available Plans Section */}
         {plans.length > 0 && (
-          <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
+          <div className="bg-card border border-border rounded-xl p-8 shadow-lg" data-plans-section>
             <div className="flex items-center justify-between mb-8">
               <div className="text-center flex-1">
                 <h2 className="text-2xl font-bold text-foreground mb-2">Available Plans</h2>
@@ -491,7 +493,7 @@ export default function UserSubscriptionsPage() {
                         ) : (
                           <span className="flex items-center gap-2">
                             <Play className="w-4 h-4" />
-                            Subscribe
+                            {status?.is_active ? 'Extend' : 'Subscribe'}
                           </span>
                         )}
                       </button>
@@ -623,45 +625,6 @@ export default function UserSubscriptionsPage() {
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Extend Modal */}
-        {showExtendModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-            <div className="bg-card border border-border rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-foreground">Extend Subscription</h3>
-                <button
-                  onClick={() => setShowExtendModal(false)}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.plan_id}
-                    className="border border-border rounded-lg p-4 hover:border-primary transition-colors"
-                  >
-                    <h4 className="font-semibold text-foreground mb-2">{plan.name}</h4>
-                    <p className="text-sm text-muted-foreground mb-2">{plan.duration_display}</p>
-                    <p className="text-lg font-bold text-foreground mb-4">
-                      {plan.currency} {plan.price}
-                    </p>
-                    <button
-                      onClick={() => handleExtend(plan.plan_id)}
-                      disabled={extending === plan.plan_id}
-                      className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                      {extending === plan.plan_id ? 'Processing...' : `Extend ${plan.name}`}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         )}
       </main>
