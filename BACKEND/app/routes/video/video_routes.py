@@ -15,7 +15,7 @@ from app.services.video.video_services import (
     delete_video,
     increment_video_view
 )
-from app.core.security import get_current_user
+from app.core.security import get_current_user, get_admin_user
 from fastapi import File, UploadFile
 from app.core.cloudinary_config import upload_to_cloudinary
 
@@ -32,6 +32,97 @@ def upload_to_cloudinary_route(file: UploadFile = File(...), resource_type: str 
         return {"url": metadata["secure_url"], "metadata": metadata}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/admin/upload/video")
+async def upload_video_file_admin(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_admin_user)
+):
+    """Upload video file to Cloudinary (admin only)"""
+    try:
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('video/'):
+            raise HTTPException(status_code=400, detail="Only video files are allowed")
+
+        # Validate file size (max 500MB)
+        file_size = 0
+        content = await file.read()
+        file_size = len(content)
+
+        if file_size > 500 * 1024 * 1024:  # 500MB
+            raise HTTPException(status_code=400, detail="File size too large. Maximum allowed size is 500MB")
+
+        # Reset file pointer
+        await file.seek(0)
+        content = await file.read()
+
+        # Upload to Cloudinary and get metadata
+        metadata = upload_to_cloudinary(content, resource_type="video", folder="videohub/videos")
+
+        # If duration is not available from Cloudinary, try to estimate it
+        duration = metadata.get('duration', 0)
+        if not duration and metadata.get('bytes'):
+            # Rough estimation: assume 1MB = ~1 second for video (very rough)
+            # This is just a fallback - real duration should come from Cloudinary
+            estimated_duration = max(1, metadata['bytes'] // (1024 * 1024))  # At least 1 second
+            duration = estimated_duration
+
+        return {
+            "url": metadata['secure_url'],
+            "duration": duration,
+            "format": metadata.get('format'),
+            "width": metadata.get('width'),
+            "height": metadata.get('height'),
+            "bit_rate": metadata.get('bit_rate'),
+            "bytes": metadata.get('bytes'),
+            "public_id": metadata.get('public_id'),
+            "message": "Video uploaded successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Video upload error: {str(e)}")  # Add logging
+        raise HTTPException(status_code=400, detail=f"Upload failed: {str(e)}")
+
+@router.post("/admin/upload/thumbnail")
+async def upload_thumbnail_file_admin(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_admin_user)
+):
+    """Upload thumbnail/image file to Cloudinary (admin only)"""
+    try:
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="Only image files are allowed")
+
+        # Validate file size (max 10MB for thumbnails)
+        file_size = 0
+        content = await file.read()
+        file_size = len(content)
+
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            raise HTTPException(status_code=400, detail="File size too large. Maximum allowed size is 10MB")
+
+        # Reset file pointer
+        await file.seek(0)
+        content = await file.read()
+
+        # Upload to Cloudinary and get metadata
+        metadata = upload_to_cloudinary(content, resource_type="image", folder="videohub/thumbnails")
+
+        return {
+            "url": metadata['secure_url'],
+            "format": metadata.get('format'),
+            "width": metadata.get('width'),
+            "height": metadata.get('height'),
+            "bytes": metadata.get('bytes'),
+            "message": "Thumbnail uploaded successfully"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Thumbnail upload error: {str(e)}")  # Add logging
+        raise HTTPException(status_code=400, detail=f"Upload failed: {str(e)}")
     
 @router.post("/", status_code=status.HTTP_201_CREATED)
 def upload_video(video_data: VideoCreate, current_user: dict = Depends(get_current_user)):

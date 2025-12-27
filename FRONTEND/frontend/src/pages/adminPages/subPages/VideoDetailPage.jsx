@@ -372,20 +372,8 @@ export default function VideoDetailPage() {
             <div className="flex items-start gap-2">
               <User className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <div className="flex-1">
-                <div className="text-xs sm:text-sm text-muted-foreground">Uploader</div>
-                <div className="flex items-center gap-2 mt-1">
-                  {video.uploader_profile_picture ? (
-                    <img src={video.uploader_profile_picture} alt={video.uploader_display_name || video.uploader_username || 'Uploader'} className="w-8 h-8 rounded-full object-cover border border-border" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-primary border border-border">
-                      {(video.uploader_display_name?.[0] || video.uploader_username?.[0] || '?').toUpperCase()}
-                    </div>
-                  )}
-                  <span className="text-sm text-foreground font-medium truncate max-w-[120px]">{video.uploader_display_name || video.uploader_username || 'Unknown'}</span>
-                </div>
-                {video.uploader_email && (
-                  <div className="text-xs sm:text-sm text-muted-foreground">{video.uploader_email}</div>
-                )}
+                <div className="text-xs sm:text-sm text-muted-foreground">Uploader Email</div>
+                <div className="text-sm sm:text-base text-foreground">{video.uploader_email || 'Not available'}</div>
               </div>
             </div>
             <div className="flex items-start gap-2">

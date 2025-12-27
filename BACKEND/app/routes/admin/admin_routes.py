@@ -359,66 +359,6 @@ def update_video_metadata(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post('/upload/video')
-async def upload_video_file(
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_admin_user)
-):
-    """Upload video file to Cloudinary (admin only)"""
-    try:
-        # Read file content
-        content = await file.read()
-        
-        # Upload to Cloudinary and get metadata
-        metadata = upload_to_cloudinary(content, resource_type="video", folder="videohub/videos")
-        
-        # If duration is not available from Cloudinary, try to estimate it
-        duration = metadata.get('duration', 0)
-        if not duration and metadata.get('bytes'):
-            # Rough estimation: assume 1MB = ~1 second for video (very rough)
-            # This is just a fallback - real duration should come from Cloudinary
-            estimated_duration = max(1, metadata['bytes'] // (1024 * 1024))  # At least 1 second
-            duration = estimated_duration
-        
-        return {
-            "url": metadata['secure_url'],
-            "duration": duration,
-            "format": metadata.get('format'),
-            "width": metadata.get('width'),
-            "height": metadata.get('height'),
-            "bit_rate": metadata.get('bit_rate'),
-            "bytes": metadata.get('bytes'),
-            "public_id": metadata.get('public_id'),
-            "message": "Video uploaded successfully"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-@router.post('/upload/thumbnail')
-async def upload_thumbnail_file(
-    file: UploadFile = File(...),
-    current_user: dict = Depends(get_admin_user)
-):
-    """Upload thumbnail/image file to Cloudinary (admin only)"""
-    try:
-        # Read file content
-        content = await file.read()
-        
-        # Upload to Cloudinary and get metadata
-        metadata = upload_to_cloudinary(content, resource_type="image", folder="videohub/thumbnails")
-        
-        return {
-            "url": metadata['secure_url'],
-            "format": metadata.get('format'),
-            "width": metadata.get('width'),
-            "height": metadata.get('height'),
-            "bytes": metadata.get('bytes'),
-            "message": "Thumbnail uploaded successfully"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-
 @router.get('/videos/{video_id}/details')
 def get_video_full_details(
     video_id: str,
@@ -438,8 +378,10 @@ def get_video_full_details(
             if uploader:
                 video['uploader_name'] = uploader.get('display_name', 'Unknown')
                 video['uploader_email'] = uploader.get('email', '')
-        
-        # Get comments count
+            else:
+                video['uploader_email'] = 'Uploader not found'
+        else:
+            video['uploader_email'] = 'No uploader ID'
         comments_count = db['comments'].count_documents({'video_id': video_id})
         video['comments_count'] = comments_count
         

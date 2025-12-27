@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, X, Save, Plus } from 'lucide-react';
+import { Upload, X, Save, Plus, Search } from 'lucide-react';
 import { uploadVideo, uploadThumbnail } from '../../../api/adminAPI/videoApi';
 import { createCategory, createTag } from '../../../api/adminAPI/categoryTagApi';
 import toast from 'react-hot-toast';
@@ -18,6 +18,8 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
   const [creatingTag, setCreatingTag] = useState(false);
   const [localCategories, setLocalCategories] = useState(categories);
   const [localTags, setLocalTags] = useState(tags);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [tagSearch, setTagSearch] = useState('');
 
   const handleVideoFileChange = (e) => {
     const file = e.target.files[0];
@@ -57,7 +59,7 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
       // Debug Cloudinary response
       console.log('Cloudinary upload response:', response);
       // Extract video metadata from Cloudinary response
-      const duration = response.duration || response.metadata?.duration || 0;
+      const duration = response.duration || 0;
       setVideo({ 
         ...video, 
         video_url: response.url,
@@ -67,7 +69,7 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
       // Store metadata for display
       setVideoMetadata({
         duration: Math.round(duration) || 1,
-        format: response.format || response.metadata?.format,
+        format: response.format,
         resolution: response.width && response.height ? `${response.width}x${response.height}` : null,
         size: response.bytes ? `${(response.bytes / (1024 * 1024)).toFixed(2)} MB` : null
       });
@@ -173,16 +175,16 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-card border border-border rounded-xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-card border-b border-border p-3 sm:p-4 flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground">{title}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <div className="p-6 space-y-4">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Title *</label>
             <input
@@ -209,18 +211,18 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">Video File *</label>
                 <div className="space-y-2">
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="file"
                       accept="video/*"
                       onChange={handleVideoFileChange}
-                      className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
+                      className="flex-1 px-3 sm:px-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
                     />
                     <button
                       type="button"
                       onClick={handleVideoUpload}
                       disabled={!videoFile || uploadingVideo}
-                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       <Upload className="w-4 h-4" />
                       {uploadingVideo ? 'Uploading...' : 'Upload'}
@@ -271,18 +273,18 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Thumbnail Image</label>
             <div className="space-y-2">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleThumbnailFileChange}
-                  className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
+                  className="flex-1 px-3 sm:px-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
                 />
                 <button
                   type="button"
                   onClick={handleThumbnailUpload}
                   disabled={!thumbnailFile || uploadingThumbnail}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Upload className="w-4 h-4" />
                   {uploadingThumbnail ? 'Uploading...' : 'Upload'}
@@ -298,7 +300,6 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
               )}
               {video.thumbnail_url && (
                 <>
-                  <p className="text-xs text-green-500">✓ Thumbnail URL: {video.thumbnail_url}</p>
                   <img src={video.thumbnail_url} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
                 </>
               )}
@@ -322,167 +323,213 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
 
           {/* Categories */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Categories</label>
+            <label className="block text-sm font-medium text-foreground mb-3">Categories</label>
             
-            {/* Selected Categories */}
-            <div className="flex flex-wrap gap-2 mb-2 min-h-[32px] p-2 bg-secondary border border-border rounded-lg">
-              {video.categories && video.categories.length > 0 ? (
-                video.categories.map((slug) => {
-                  const cat = localCategories.find(c => c.slug === slug);
-                  return cat ? (
-                    <span
-                      key={slug}
-                      className="flex items-center gap-1 px-2 py-1 bg-primary/20 text-primary rounded-md text-sm"
-                    >
-                      {cat.name}
-                      <button
-                        type="button"
-                        onClick={() => toggleCategory(slug)}
-                        className="hover:text-primary/70"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ) : null;
-                })
-              ) : (
-                <span className="text-sm text-muted-foreground">No categories selected</span>
-              )}
-            </div>
-
-            {/* Select Existing Categories */}
-            <div className="border border-border rounded-lg bg-card p-3 space-y-2 max-h-40 overflow-y-auto mb-2">
-              <div className="text-xs text-muted-foreground mb-1">Select existing categories:</div>
-              <div className="space-y-1">
-                {localCategories.map((cat) => (
-                  <label
-                    key={cat.id}
-                    className="flex items-center gap-2 p-2 hover:bg-secondary rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={video.categories?.includes(cat.slug) || false}
-                      onChange={() => toggleCategory(cat.slug)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-foreground">{cat.name}</span>
-                  </label>
-                ))}
-                {localCategories.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">No categories available</p>
+            {/* Selected Categories Box */}
+            <div className="mb-4">
+              <div className="text-xs text-muted-foreground mb-2">Selected Categories:</div>
+              <div className="min-h-[60px] p-3 bg-secondary border border-border rounded-lg">
+                {video.categories && video.categories.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {video.categories.map((slug) => {
+                      const cat = localCategories.find(c => c.slug === slug);
+                      return cat ? (
+                        <span
+                          key={slug}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-primary/20 text-primary rounded-full text-sm font-medium"
+                        >
+                          {cat.name}
+                          <button
+                            type="button"
+                            onClick={() => toggleCategory(slug)}
+                            className="hover:text-primary/70 ml-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No categories selected</span>
                 )}
               </div>
             </div>
 
-            {/* Create New Category Section */}
-            <div className="bg-secondary/50 border border-border rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Plus className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium text-foreground">Create New Category</span>
+            {/* Search and Create Category */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={categorySearch}
+                  onChange={(e) => setCategorySearch(e.target.value)}
+                  placeholder="Search categories..."
+                  className="w-full pl-10 pr-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={newCategoryName}
                   onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Enter category name"
-                  className="flex-1 px-3 py-1.5 bg-card border border-border rounded text-sm text-foreground"
+                  placeholder="New category name"
+                  className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   onKeyPress={(e) => e.key === 'Enter' && handleCreateCategory()}
                 />
                 <button
                   type="button"
                   onClick={handleCreateCategory}
                   disabled={creatingCategory || !newCategoryName.trim()}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
+                  <Plus className="w-4 h-4" />
                   {creatingCategory ? 'Creating...' : 'Create'}
                 </button>
+              </div>
+            </div>
+
+            {/* Available Categories */}
+            <div>
+              <div className="text-xs text-muted-foreground mb-2">Available Categories:</div>
+              <div className="border border-border rounded-lg bg-card p-3 max-h-32 overflow-y-auto">
+                {localCategories.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {localCategories
+                      .filter(cat => 
+                        !video.categories?.includes(cat.slug) && 
+                        cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                      )
+                      .map((cat) => (
+                        <button
+                          key={cat.id}
+                          onClick={() => toggleCategory(cat.slug)}
+                          className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-full text-sm transition-colors"
+                        >
+                          + {cat.name}
+                        </button>
+                      ))}
+                    {localCategories.filter(cat => 
+                      !video.categories?.includes(cat.slug) && 
+                      cat.name.toLowerCase().includes(categorySearch.toLowerCase())
+                    ).length === 0 && (
+                      <p className="text-xs text-muted-foreground w-full text-center py-2">
+                        {categorySearch ? 'No matching categories found' : 'All categories selected'}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">No categories available</p>
+                )}
               </div>
             </div>
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Tags</label>
+            <label className="block text-sm font-medium text-foreground mb-3">Tags</label>
             
-            {/* Selected Tags */}
-            <div className="flex flex-wrap gap-2 mb-2 min-h-[32px] p-2 bg-secondary border border-border rounded-lg">
-              {video.tags && video.tags.length > 0 ? (
-                video.tags.map((slug) => {
-                  const tag = localTags.find(t => t.slug === slug);
-                  return tag ? (
-                    <span
-                      key={slug}
-                      className="flex items-center gap-1 px-2 py-1 bg-blue-900/30 text-blue-300 rounded-md text-sm"
-                    >
-                      #{tag.name}
-                      <button
-                        type="button"
-                        onClick={() => toggleTag(slug)}
-                        className="hover:text-blue-200"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ) : null;
-                })
-              ) : (
-                <span className="text-sm text-muted-foreground">No tags selected</span>
-              )}
-            </div>
-
-            {/* Select Existing Tags */}
-            <div className="border border-border rounded-lg bg-card p-3 space-y-2 max-h-40 overflow-y-auto mb-2">
-              <div className="text-xs text-muted-foreground mb-1">Select existing tags:</div>
-              <div className="space-y-1">
-                {localTags.map((tag) => (
-                  <label
-                    key={tag.id}
-                    className="flex items-center gap-2 p-2 hover:bg-secondary rounded cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={video.tags?.includes(tag.slug) || false}
-                      onChange={() => toggleTag(tag.slug)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-foreground">#{tag.name}</span>
-                  </label>
-                ))}
-                {localTags.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-2">No tags available</p>
+            {/* Selected Tags Box */}
+            <div className="mb-4">
+              <div className="text-xs text-muted-foreground mb-2">Selected Tags:</div>
+              <div className="min-h-[60px] p-3 bg-secondary border border-border rounded-lg">
+                {video.tags && video.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {video.tags.map((slug) => {
+                      const tag = localTags.find(t => t.slug === slug);
+                      return tag ? (
+                        <span
+                          key={slug}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-900/30 text-blue-300 rounded-full text-sm font-medium"
+                        >
+                          #{tag.name}
+                          <button
+                            type="button"
+                            onClick={() => toggleTag(slug)}
+                            className="hover:text-blue-200 ml-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">No tags selected</span>
                 )}
               </div>
             </div>
 
-            {/* Create New Tag Section */}
-            <div className="bg-secondary/50 border border-border rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Plus className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium text-foreground">Create New Tag</span>
+            {/* Search and Create Tag */}
+            <div className="flex flex-col sm:flex-row gap-2 mb-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder="Search tags..."
+                  className="w-full pl-10 pr-4 py-2 bg-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={newTagName}
                   onChange={(e) => setNewTagName(e.target.value)}
-                  placeholder="Enter tag name"
-                  className="flex-1 px-3 py-1.5 bg-card border border-border rounded text-sm text-foreground"
+                  placeholder="New tag name"
+                  className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   onKeyPress={(e) => e.key === 'Enter' && handleCreateTag()}
                 />
                 <button
                   type="button"
                   onClick={handleCreateTag}
                   disabled={creatingTag || !newTagName.trim()}
-                  className="px-3 py-1.5 bg-primary text-primary-foreground rounded text-sm hover:opacity-90 disabled:opacity-50"
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-1"
                 >
+                  <Plus className="w-4 h-4" />
                   {creatingTag ? 'Creating...' : 'Create'}
                 </button>
               </div>
             </div>
+
+            {/* Available Tags */}
+            <div>
+              <div className="text-xs text-muted-foreground mb-2">Available Tags:</div>
+              <div className="border border-border rounded-lg bg-card p-3 max-h-32 overflow-y-auto">
+                {localTags.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {localTags
+                      .filter(tag => 
+                        !video.tags?.includes(tag.slug) && 
+                        tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+                      )
+                      .map((tag) => (
+                        <button
+                          key={tag.id}
+                          onClick={() => toggleTag(tag.slug)}
+                          className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 text-foreground rounded-full text-sm transition-colors"
+                        >
+                          + #{tag.name}
+                        </button>
+                      ))}
+                    {localTags.filter(tag => 
+                      !video.tags?.includes(tag.slug) && 
+                      tag.name.toLowerCase().includes(tagSearch.toLowerCase())
+                    ).length === 0 && (
+                      <p className="text-xs text-muted-foreground w-full text-center py-2">
+                        {tagSearch ? 'No matching tags found' : 'All tags selected'}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-2">No tags available</p>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -528,11 +575,11 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
             )}
           </div>
 
-          <div className="flex gap-2 pt-4">
+          <div className="flex flex-col sm:flex-row gap-2 pt-4">
             <button
               onClick={onSave}
               disabled={!isEdit && (!video.title || !video.video_url)}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               title={!isEdit && (!video.title || !video.video_url) ? 'Please enter title and upload video first' : ''}
             >
               <Save className="w-4 h-4" />
@@ -540,7 +587,7 @@ const VideoFormModal = ({ title, video, setVideo, categories, tags, onSave, onCl
             </button>
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors"
+              className="flex-1 px-4 py-3 bg-secondary text-foreground rounded-lg font-medium hover:bg-secondary/80 transition-colors"
             >
               Cancel
             </button>

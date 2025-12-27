@@ -60,7 +60,7 @@ export async function uploadVideo(file, onUploadProgress) {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    const response = await axiosInstance.post('/admin/upload/video', formData, {
+    const response = await axiosInstance.post('/videos/admin/upload/video', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -68,7 +68,9 @@ export async function uploadVideo(file, onUploadProgress) {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.detail || "Failed to upload video");
+    console.error('Video upload error:', error.response?.data);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || "Failed to upload video";
+    throw new Error(errorMessage);
   }
 }
 
@@ -77,8 +79,7 @@ export async function uploadThumbnail(file, onUploadProgress) {
   try {
     const formData = new FormData();
     formData.append('file', file);
-    // Use /admin/upload/thumbnail for thumbnails
-    const response = await axiosInstance.post('/admin/upload/thumbnail', formData, {
+    const response = await axiosInstance.post('/videos/admin/upload/thumbnail', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -86,7 +87,9 @@ export async function uploadThumbnail(file, onUploadProgress) {
     });
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.detail || "Failed to upload thumbnail");
+    console.error('Thumbnail upload error:', error.response?.data);
+    const errorMessage = error.response?.data?.detail || error.response?.data?.message || error.message || "Failed to upload thumbnail";
+    throw new Error(errorMessage);
   }
 }
 
