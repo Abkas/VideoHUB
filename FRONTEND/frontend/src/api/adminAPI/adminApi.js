@@ -81,3 +81,23 @@ export async function demoteFromAdmin(userId) {
     throw new Error(error.response?.data?.detail || "Failed to demote user");
   }
 }
+
+// Get user subscriptions
+export async function getUserSubscriptions(userId) {
+  try {
+    const response = await axiosInstance.get(`/admin/users/${userId}/subscriptions`);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to fetch user subscriptions");
+  }
+}
+
+// Update user subscription
+export async function updateUserSubscription(userId, subscriptionData) {
+  try {
+    const response = await axiosInstance.put(`/admin/users/${userId}/subscription`, subscriptionData);
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.detail || "Failed to update user subscription");
+  }
+}

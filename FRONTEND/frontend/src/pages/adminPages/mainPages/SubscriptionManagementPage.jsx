@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { 
-  Crown, Users, Clock, Plus, Edit, Trash2, 
+  Crown, Users, Clock, Plus, Edit, Trash2, ArrowLeft,
   TrendingUp, AlertCircle, CheckCircle, XCircle, DollarSign
 } from 'lucide-react';
 import {
@@ -174,8 +174,27 @@ export default function SubscriptionManagementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-card border-b border-border">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-primary" />
+              <span className="text-lg font-bold text-foreground">Admin Panel</span>
+            </div>
+            <Link 
+              to="/admin"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="hidden sm:inline">Back</span>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 py-6">
         <h1 className="text-3xl font-bold text-foreground mb-6">Subscription Management</h1>
 
         {/* Statistics Cards */}
@@ -300,18 +319,35 @@ export default function SubscriptionManagementPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">User ID</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">User</th>
                   <th className="text-left p-2 text-sm font-medium text-muted-foreground">Plan</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Type</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Price</th>
                   <th className="text-left p-2 text-sm font-medium text-muted-foreground">Status</th>
                   <th className="text-left p-2 text-sm font-medium text-muted-foreground">Expires At</th>
-                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Created</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Purchased</th>
                 </tr>
               </thead>
               <tbody>
                 {history.map((sub) => (
                   <tr key={sub.id} className="border-b border-border hover:bg-secondary/50">
-                    <td className="p-2 text-foreground">{sub.user_id}</td>
+                    <td className="p-2 text-foreground">
+                      <div>
+                        <p className="font-medium">{sub.display_name || sub.username || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">{sub.user_id}</p>
+                      </div>
+                    </td>
                     <td className="p-2 text-foreground">{sub.plan_name || 'N/A'}</td>
+                    <td className="p-2 text-foreground">
+                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${
+                        sub.transaction_type === 'subscribe' 
+                          ? 'bg-blue-500/10 text-blue-500' 
+                          : 'bg-green-500/10 text-green-500'
+                      }`}>
+                        {sub.transaction_type === 'subscribe' ? 'Initial' : 'Extended'}
+                      </span>
+                    </td>
+                    <td className="p-2 text-foreground">Rs. {sub.price || 0}</td>
                     <td className="p-2">
                       {sub.is_active ? (
                         <span className="inline-flex items-center gap-1 text-success">
@@ -515,7 +551,7 @@ export default function SubscriptionManagementPage() {
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

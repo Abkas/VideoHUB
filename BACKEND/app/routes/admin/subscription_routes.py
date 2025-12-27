@@ -12,6 +12,7 @@ from app.services.admin.subscription_services import (
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
+from bson.objectid import ObjectId
 
 router = APIRouter(prefix="/admin/subscriptions", tags=["Admin Subscriptions"])
 
@@ -25,7 +26,7 @@ class PlanCreate(BaseModel):
     description: Optional[str] = None
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Premium Plan",
                 "duration_seconds": 604800,  # 7 days
@@ -124,4 +125,57 @@ def get_subscription_history(
     admin: dict = Depends(get_admin_user)
 ):
     """Get all subscription history"""
-    return get_all_subscriptions(skip, limit)
+    from app.core.database import client
+    from datetime import datetime
+    
+    db = client['videohub']
+    history_records = list(db['subscription_history'].find()
+                          .sort('created_at', -1)
+                          .skip(skip)
+                          .limit(limit))
+    
+    # Format history records
+    for record in history_records:
+        record['id'] = str(record['_id'])
+        record.pop('_id', None)
+        
+        # Ensure username and display_name are always set
+        if 'username' not in record:
+            record['username'] = 'Unknown'
+        if 'display_name' not in record:
+            record['display_name'] = record.get('username', 'Unknown')
+            
+        if record.get('username') == 'Unknown':
+            user_id = record.get('user_id')
+            print(f"Looking up username for user_id: {user_id}")
+            if user_id:
+                try:
+                    user = db['users'].find_one({'_id': ObjectId(user_id)}, {'username': 1, 'display_name': 1})
+                    print(f"Found user: {user}")
+                    if user:
+                        record['username'] = user.get('username', 'Unknown')
+                        record['display_name'] = user.get('display_name', user.get('username', 'Unknown'))
+                        print(f"Set username to: {record['username']}")
+                    else:
+                        print("User not found")
+                        # As fallback, use part of the user_id
+                        record['username'] = f"User_{user_id[:8]}"
+                        record['display_name'] = f"User_{user_id[:8]}"
+                except Exception as e:
+                    print(f"Error looking up user: {e}")
+                    record['username'] = f"User_{user_id[:8] if user_id else 'Unknown'}"
+                    record['display_name'] = f"User_{user_id[:8] if user_id else 'Unknown'}"
+        else:
+            print(f"Record already has username: {record.get('username')}")
+        
+        # Add computed fields
+        record['is_active'] = record.get('expires_at', datetime.utcnow()) > datetime.utcnow()
+    
+    total = db['subscription_history'].count_documents({})
+    
+    return {
+        'subscriptions': history_records,
+        'total': total,
+        'skip': skip,
+        'limit': limit
+    }

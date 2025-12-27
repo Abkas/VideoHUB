@@ -2,6 +2,7 @@ from datetime import datetime
 from app.core.database import client
 from bson.objectid import ObjectId
 from typing import Optional
+from app.services.user.subscription_services import get_total_income
 
 db = client['videohub']
 
@@ -124,21 +125,8 @@ def get_subscription_stats():
         'expires_at': {'$lte': now}
     })
     
-    # Calculate total income earned
-    total_income = 0.0
-    all_subscriptions = list(db['time_subscriptions'].find({}, {'plan_id': 1}))
-    
-    for sub in all_subscriptions:
-        plan_id = sub.get('plan_id')
-        if plan_id:
-            try:
-                # plan_id is stored as string, convert to ObjectId
-                plan = db['subscription_plans'].find_one({'_id': ObjectId(plan_id)}, {'price': 1})
-                if plan and 'price' in plan:
-                    total_income += plan['price']
-            except:
-                # Skip invalid plan_ids
-                pass
+    # Get total income from stored value
+    total_income = get_total_income()
     
     # Get subscription history (recent purchases)
     recent_subscriptions = list(
@@ -178,6 +166,26 @@ def get_all_subscriptions(skip: int = 0, limit: int = 20):
     for sub in subscriptions:
         sub['id'] = str(sub['_id'])
         sub.pop('_id', None)
+        
+        # Get username from users collection
+        user_id = sub.get('user_id')
+        if user_id:
+            try:
+                # user_id is actually the MongoDB _id of the user as string
+                user = db['users'].find_one({'_id': ObjectId(user_id)}, {'username': 1, 'display_name': 1})
+                if user:
+                    sub['username'] = user.get('username', 'Unknown')
+                    sub['display_name'] = user.get('display_name', user.get('username', 'Unknown'))
+                else:
+                    sub['username'] = 'Unknown'
+                    sub['display_name'] = 'Unknown'
+            except:
+                sub['username'] = 'Unknown'
+                sub['display_name'] = 'Unknown'
+        else:
+            sub['username'] = 'Unknown'
+            sub['display_name'] = 'Unknown'
+        
         if sub.get('expires_at'):
             sub['is_active'] = sub['expires_at'] > now
             sub['remaining_seconds'] = max(0, int((sub['expires_at'] - now).total_seconds()))

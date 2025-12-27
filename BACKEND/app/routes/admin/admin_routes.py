@@ -43,9 +43,21 @@ def list_all_users(current_user: dict = Depends(get_admin_user), skip: int = 0, 
     """List all users (admin only)"""
     users = list(db['users'].find({}, {'hashed_password': 0}).skip(skip).limit(limit))
     
-    # Convert ObjectId to string
+    # Convert ObjectId to string and add subscription info
     for user in users:
         user['_id'] = str(user['_id'])
+        
+        # Check subscription status
+        user_id_str = str(user['_id'])
+        subscription = db['time_subscriptions'].find_one({'user_id': user_id_str})
+        if subscription:
+            from datetime import datetime
+            expires_at = subscription.get('expires_at')
+            user['has_active_subscription'] = expires_at and expires_at > datetime.utcnow()
+            user['subscription_expires_at'] = expires_at.isoformat() if expires_at else None
+        else:
+            user['has_active_subscription'] = False
+            user['subscription_expires_at'] = None
     
     return {
         "users": users,
@@ -152,6 +164,150 @@ def demote_from_admin(user_id: str, current_user: dict = Depends(get_admin_user)
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="User not found")
         return {"message": "User demoted to regular user successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get('/users/{user_id}/subscriptions')
+def get_user_subscriptions(user_id: str, current_user: dict = Depends(get_admin_user)):
+    """Get user subscription details and history (admin only)"""
+    try:
+        from app.services.admin.subscription_services import get_all_subscriptions
+        from app.services.user.subscription_services import get_subscription_status
+        
+        # Get current subscription status
+        current_status = get_subscription_status(user_id)
+        
+        # Get subscription history for this user
+        from app.core.database import client
+        db = client['videohub']
+        history_records = list(db['subscription_history'].find({'user_id': user_id})
+                              .sort('created_at', -1))
+        
+        # Format history records
+        subscription_history = []
+        for record in history_records:
+            record['id'] = str(record['_id'])
+            record.pop('_id', None)
+            # Add computed fields
+            record['is_active'] = record.get('expires_at', datetime.utcnow()) > datetime.utcnow()
+            subscription_history.append(record)
+        
+        return {
+            "current_status": current_status,
+            "subscription_history": subscription_history
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put('/users/{user_id}/subscription')
+def update_user_subscription(
+    user_id: str,
+    subscription_data: dict,
+    current_user: dict = Depends(get_admin_user)
+):
+    """Update user subscription expiry time (admin only)"""
+    try:
+        from datetime import datetime
+        
+        expires_at_str = subscription_data.get('expires_at')
+        if not expires_at_str:
+            raise HTTPException(status_code=400, detail="expires_at is required")
+        
+        try:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+        except:
+            raise HTTPException(status_code=400, detail="Invalid expires_at format")
+        
+        # Update the subscription
+        result = db['time_subscriptions'].update_one(
+            {'user_id': user_id},
+            {
+                '$set': {
+                    'expires_at': expires_at,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User subscription not found")
+        
+        return {"message": "Subscription updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get('/users/{user_id}')
+def get_user_details(user_id: str, current_user: dict = Depends(get_admin_user)):
+    """Get detailed user information (admin only)"""
+    try:
+        user = db['users'].find_one({'_id': ObjectId(user_id)})
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        user['_id'] = str(user['_id'])
+        user.pop('hashed_password', None)  # Remove password
+        
+        # Get user statistics
+        video_count = db['videos'].count_documents({'uploader_id': user_id})
+        watch_history_count = db['watch_history'].count_documents({'user_id': int(user_id) if user_id.isdigit() else user_id})
+        
+        # Check subscription status
+        subscription = db['time_subscriptions'].find_one({'user_id': user_id})
+        has_subscription = False
+        if subscription:
+            from datetime import datetime
+            expires_at = subscription.get('expires_at')
+            if expires_at and expires_at > datetime.utcnow():
+                has_subscription = True
+        
+        stats = {
+            'video_count': video_count,
+            'watch_history_count': watch_history_count,
+            'has_subscription': has_subscription
+        }
+        
+        # Get recent watch history
+        recent_watch_history = list(db['watch_history'].find({'user_id': int(user_id) if user_id.isdigit() else user_id})
+                                   .sort('watched_at', -1)
+                                   .limit(10))
+        
+        for history in recent_watch_history:
+            history['_id'] = str(history['_id'])
+            # Get video title
+            video = db['videos'].find_one({'_id': ObjectId(history['video_id'])})
+            if video:
+                history['video_title'] = video.get('title', 'Unknown Video')
+            else:
+                history['video_title'] = 'Video not found'
+        
+        return {
+            'user': user,
+            'stats': stats,
+            'recent_watch_history': recent_watch_history
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get('/users/{user_id}/subscriptions')
+def get_user_subscriptions(user_id: str, current_user: dict = Depends(get_admin_user)):
+    """Get user's subscription history and current status (admin only)"""
+    try:
+        from app.services.admin.subscription_services import get_all_subscriptions
+        from app.services.user.subscription_services import get_subscription_status
+        
+        # Get current subscription status
+        status_data = get_subscription_status(user_id)
+        
+        # Get subscription history (filter for this user)
+        all_subs = get_all_subscriptions(0, 100)  # Get more to filter
+        user_subscriptions = [sub for sub in all_subs['subscriptions'] if sub.get('user_id') == user_id]
+        
+        return {
+            'current_status': status_data,
+            'subscription_history': user_subscriptions
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -442,5 +598,44 @@ def sync_video_counts(current_user: dict = Depends(get_admin_user)):
             "categories_updated": len(categories_count),
             "tags_updated": len(tags_count)
         }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put('/users/{user_id}/subscription')
+def update_user_subscription(
+    user_id: str,
+    subscription_data: dict,
+    current_user: dict = Depends(get_admin_user)
+):
+    """Update user subscription expiry time (admin only)"""
+    try:
+        from datetime import datetime
+        
+        expires_at_str = subscription_data.get('expires_at')
+        if not expires_at_str:
+            raise HTTPException(status_code=400, detail="expires_at is required")
+        
+        try:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+        except:
+            raise HTTPException(status_code=400, detail="Invalid expires_at format")
+        
+        # Update the subscription
+        result = db['time_subscriptions'].update_one(
+            {'user_id': user_id},
+            {
+                '$set': {
+                    'expires_at': expires_at,
+                    'updated_at': datetime.utcnow()
+                }
+            }
+        )
+        
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="User subscription not found")
+        
+        return {"message": "Subscription updated successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

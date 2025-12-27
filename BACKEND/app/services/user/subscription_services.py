@@ -5,6 +5,52 @@ from bson.objectid import ObjectId
 db = client['videohub']
 
 
+def update_total_income(amount: float):
+    """
+    Update the total income by adding the given amount
+    """
+    stats_collection = db['subscription_stats']
+    stats_collection.update_one(
+        {'type': 'global'},
+        {'$inc': {'total_income': amount}},
+        upsert=True
+    )
+
+
+def get_total_income() -> float:
+    """
+    Get the current total income
+    """
+    stats_collection = db['subscription_stats']
+    stats = stats_collection.find_one({'type': 'global'})
+    if stats and 'total_income' in stats:
+        return stats['total_income']
+    else:
+        # Initialize if not exists
+        calculated_income = calculate_total_income()
+        update_total_income(calculated_income)
+        return calculated_income
+
+
+def calculate_total_income() -> float:
+    """
+    Calculate total income from all subscriptions
+    """
+    total_income = 0.0
+    all_subscriptions = list(db['time_subscriptions'].find({}, {'plan_id': 1}))
+    
+    for sub in all_subscriptions:
+        plan_id = sub.get('plan_id')
+        if plan_id:
+            try:
+                plan = db['subscription_plans'].find_one({'_id': ObjectId(plan_id)}, {'price': 1})
+                if plan and 'price' in plan:
+                    total_income += plan['price']
+            except:
+                pass
+    return total_income
+
+
 def get_subscription_status(user_id: int) -> dict:
     """
     Get user's subscription status
@@ -156,5 +202,31 @@ def subscribe_user(user_id: int, plan_id: str) -> dict:
         # Create new
         subscription_data['created_at'] = now
         db['time_subscriptions'].insert_one(subscription_data)
+    
+
+    user_info = None
+    try:
+        user_info = db['users'].find_one({'_id': ObjectId(user_id)}, {'username': 1, 'display_name': 1})
+    except:
+        pass
+    
+    history_data = {
+        'user_id': user_id,
+        'username': user_info.get('username', 'Unknown') if user_info else 'Unknown',
+        'display_name': user_info.get('display_name', user_info.get('username', 'Unknown')) if user_info else 'Unknown',
+        'plan_id': str(plan['_id']),
+        'plan_name': plan.get('name', 'Plan'),
+        'price': plan.get('price', 0),
+        'duration_seconds': duration_seconds,
+        'expires_at': new_expires_at,
+        'transaction_type': 'extend' if existing else 'subscribe',
+        'created_at': now
+    }
+    db['subscription_history'].insert_one(history_data)
+    
+    # Update total income with the plan price
+    plan_price = plan.get('price', 0)
+    if plan_price > 0:
+        update_total_income(plan_price)
     
     return get_subscription_status(user_id)

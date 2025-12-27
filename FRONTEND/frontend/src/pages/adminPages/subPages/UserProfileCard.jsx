@@ -1,4 +1,4 @@
-import { User, Mail, Calendar, Shield, Ban, CheckCircle, Eye } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Ban, CheckCircle, Eye, Crown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const UserProfileCard = ({ user, formatDate }) => {
@@ -71,6 +71,16 @@ const UserProfileCard = ({ user, formatDate }) => {
                   Active
                 </>
               )}
+            </span>
+
+            {/* Subscription Badge */}
+            <span className={`inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-medium ${
+              user.has_active_subscription
+                ? 'bg-yellow-900/30 text-yellow-300'
+                : 'bg-gray-900/30 text-gray-400'
+            }`}>
+              <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+              {user.has_active_subscription ? 'Premium' : 'Free'}
             </span>
           </div>
         </div>
