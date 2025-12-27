@@ -4,46 +4,6 @@ from bson.objectid import ObjectId
 
 db = client['videohub']
 
-# Plan definitions: plan_id -> duration in seconds
-PLANS = {
-    "30_min": 30 * 60,  # 30 minutes
-    "1_hour": 60 * 60,  # 1 hour
-    "1_day": 24 * 60 * 60,  # 24 hours
-    "1_week": 7 * 24 * 60 * 60,  # 7 days
-}
-
-# Plan metadata for display
-PLAN_METADATA = {
-    "30_min": {
-        "name": "30 Minutes",
-        "duration_display": "30 Minutes",
-        "price": 29,
-        "currency": "Rs.",
-        "tags": ["Most Popular"]
-    },
-    "1_hour": {
-        "name": "1 Hour",
-        "duration_display": "1 Hour",
-        "price": 49,
-        "currency": "Rs.",
-        "tags": ["Loved"]
-    },
-    "1_day": {
-        "name": "1 Day",
-        "duration_display": "24 Hours",
-        "price": 149,
-        "currency": "Rs.",
-        "tags": []
-    },
-    "1_week": {
-        "name": "1 Week",
-        "duration_display": "7 Days",
-        "price": 399,
-        "currency": "Rs.",
-        "tags": []
-    },
-}
-
 
 def get_subscription_status(user_id: int) -> dict:
     """
@@ -78,54 +38,6 @@ def get_subscription_status(user_id: int) -> dict:
         "remaining_seconds": int(remaining),
         "is_active": True
     }
-
-
-def subscribe_user(user_id: int, plan_id: str) -> dict:
-    """
-    Subscribe user to a plan or extend existing subscription
-    If expires_at is in the future, add time to it
-    If expired or null, set expires_at = now + plan duration
-    """
-    if plan_id not in PLANS:
-        raise ValueError(f"Invalid plan_id: {plan_id}")
-    
-    duration_seconds = PLANS[plan_id]
-    now = datetime.utcnow()
-    
-    # Get existing subscription
-    existing = db['time_subscriptions'].find_one({'user_id': user_id})
-    
-    if existing and existing.get('expires_at'):
-        expires_at = existing['expires_at']
-        # If subscription is still active (not expired), add time to it
-        if expires_at > now:
-            new_expires_at = expires_at + timedelta(seconds=duration_seconds)
-        else:
-            # Expired, start fresh from now
-            new_expires_at = now + timedelta(seconds=duration_seconds)
-    else:
-        # No subscription or no expires_at, start fresh
-        new_expires_at = now + timedelta(seconds=duration_seconds)
-    
-    # Update or create subscription
-    subscription_data = {
-        'user_id': user_id,
-        'expires_at': new_expires_at,
-        'updated_at': now
-    }
-    
-    if existing:
-        # Update existing
-        db['time_subscriptions'].update_one(
-            {'user_id': user_id},
-            {'$set': subscription_data}
-        )
-    else:
-        # Create new
-        subscription_data['created_at'] = now
-        db['time_subscriptions'].insert_one(subscription_data)
-    
-    return get_subscription_status(user_id)
 
 
 def extend_subscription(user_id: int, plan_id: str) -> dict:

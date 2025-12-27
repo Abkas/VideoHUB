@@ -41,3 +41,9 @@ export const getSubscriptionPlanById = async (planId) => {
   const response = await axios.get(`/admin/subscriptions/plans/${planId}`);
   return response.data;
 };
+
+// Get available tags for subscription plans
+export const getAvailableTags = async () => {
+  const response = await axios.get('/admin/subscriptions/tags');
+  return response.data;
+};

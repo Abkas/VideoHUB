@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthorizerProvider } from "./Auth/Authorizer";
+import { Toaster } from 'react-hot-toast';
 import HomePage from "./pages/publicPages/mainPages/HomePage";
 import BrowsePage from "./pages/publicPages/mainPages/BrowsePage";
 import VideoPreviewPage from "./pages/publicPages/mainPages/VideoPreviewPage";
@@ -9,7 +10,6 @@ import ProfilePage from "./pages/publicPages/mainPages/ProfilePage";
 import PublicUserProfilePage from "./pages/publicPages/mainPages/PublicUserProfilePage";
 import UserAccountSetting from "./pages/publicPages/mainPages/UserAccountSetting";
 import UserSubscriptionsPage from "./pages/publicPages/mainPages/UserSubscriptionsPage";
-import SubscriptionPlansPage from "./pages/publicPages/mainPages/SubscriptionPlansPage";
 import Guidelines from "./pages/publicPages/subPages/Guidelines";
 import Terms from "./pages/publicPages/subPages/Terms";
 import PrivacyPage from "./pages/publicPages/subPages/PrivacyPage";
@@ -34,7 +34,6 @@ const App = () => (
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/subscriptions" element={<UserSubscriptionsPage />} />
-        <Route path="/subscriptions/plans" element={<SubscriptionPlansPage />} />
         <Route path="/user/:id" element={<PublicUserProfilePage />} />
         <Route path="/settings" element={<UserAccountSetting />} />
         <Route path="/guidelines" element={<Guidelines />} />
@@ -50,6 +49,7 @@ const App = () => (
         <Route path="/admin/categories" element={<AdminCategoryAndTags />} />
         <Route path="/admin/subscriptions" element={<SubscriptionManagementPage />} />
       </Routes>
+      <Toaster position="top-right" />
     </BrowserRouter>
   </AuthorizerProvider>
 );

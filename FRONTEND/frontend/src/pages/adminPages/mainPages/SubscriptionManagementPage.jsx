@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Crown, Users, Clock, Plus, Edit, Trash2, 
-  TrendingUp, AlertCircle, CheckCircle, XCircle 
+  TrendingUp, AlertCircle, CheckCircle, XCircle, DollarSign
 } from 'lucide-react';
 import {
   getSubscriptionStats,
@@ -10,7 +10,8 @@ import {
   getSubscriptionPlans,
   createSubscriptionPlan,
   updateSubscriptionPlan,
-  deleteSubscriptionPlan
+  deleteSubscriptionPlan,
+  getAvailableTags
 } from '../../../api/adminAPI/subscriptionApi';
 import toast from 'react-hot-toast';
 
@@ -19,9 +20,12 @@ export default function SubscriptionManagementPage() {
   const [stats, setStats] = useState(null);
   const [plans, setPlans] = useState([]);
   const [history, setHistory] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingPlan, setDeletingPlan] = useState(null);
   const [planForm, setPlanForm] = useState({
     name: '',
     duration_seconds: 1800, // 30 minutes default
@@ -36,6 +40,19 @@ export default function SubscriptionManagementPage() {
   useEffect(() => {
     fetchData();
   }, [historyPage]);
+
+  useEffect(() => {
+    fetchAvailableTags();
+  }, []);
+
+  const fetchAvailableTags = async () => {
+    try {
+      const tagsData = await getAvailableTags();
+      setAvailableTags(tagsData.tags || []);
+    } catch (error) {
+      console.error('Error fetching tags:', error);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -121,12 +138,19 @@ export default function SubscriptionManagementPage() {
     setShowPlanModal(true);
   };
 
-  const handleDeletePlan = async (planId) => {
-    if (!confirm('Are you sure you want to delete this plan?')) return;
+  const handleDeletePlan = (plan) => {
+    setDeletingPlan(plan);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePlan = async () => {
+    if (!deletingPlan) return;
     try {
-      await deleteSubscriptionPlan(planId);
+      await deleteSubscriptionPlan(deletingPlan.id);
       toast.success('Plan deleted successfully');
       fetchData();
+      setShowDeleteModal(false);
+      setDeletingPlan(null);
     } catch (error) {
       console.error('Error deleting plan:', error);
       toast.error('Failed to delete plan');
@@ -155,39 +179,51 @@ export default function SubscriptionManagementPage() {
         <h1 className="text-3xl font-bold text-foreground mb-6">Subscription Management</h1>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6">
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Users className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Active Users</p>
-                <p className="text-2xl font-bold text-foreground">{stats?.active_users || 0}</p>
+                <p className="text-xs lg:text-sm text-muted-foreground">Active Users</p>
+                <p className="text-xl lg:text-2xl font-bold text-foreground">{stats?.active_users || 0}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-success" />
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 lg:w-6 lg:h-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Subscriptions</p>
-                <p className="text-2xl font-bold text-foreground">{stats?.total_subscriptions || 0}</p>
+                <p className="text-xs lg:text-sm text-muted-foreground">Total Subscriptions</p>
+                <p className="text-xl lg:text-2xl font-bold text-foreground">{stats?.total_subscriptions || 0}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-destructive" />
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
+                <XCircle className="w-5 h-5 lg:w-6 lg:h-6 text-destructive" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Expired</p>
-                <p className="text-2xl font-bold text-foreground">{stats?.expired_subscriptions || 0}</p>
+                <p className="text-xs lg:text-sm text-muted-foreground">Expired</p>
+                <p className="text-xl lg:text-2xl font-bold text-foreground">{stats?.expired_subscriptions || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 lg:p-6">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 lg:w-6 lg:h-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-xs lg:text-sm text-muted-foreground">Total Income</p>
+                <p className="text-xl lg:text-2xl font-bold text-foreground">Rs. {stats?.total_income?.toFixed(2) || '0.00'}</p>
               </div>
             </div>
           </div>
@@ -233,7 +269,7 @@ export default function SubscriptionManagementPage() {
                       <Edit className="w-4 h-4 text-foreground" />
                     </button>
                     <button
-                      onClick={() => handleDeletePlan(plan.id)}
+                      onClick={() => handleDeletePlan(plan)}
                       className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
@@ -391,14 +427,25 @@ export default function SubscriptionManagementPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">Tags (comma-separated)</label>
-                  <input
-                    type="text"
-                    value={planForm.tags.join(', ')}
-                    onChange={(e) => setPlanForm({ ...planForm, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
-                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
-                    placeholder="Most Popular, Loved"
-                  />
+                  <label className="block text-sm font-medium text-foreground mb-1">Tags</label>
+                  <select
+                    multiple
+                    value={planForm.tags}
+                    onChange={(e) => {
+                      const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                      setPlanForm({ ...planForm, tags: selectedOptions });
+                    }}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground min-h-[100px]"
+                  >
+                    {availableTags.map((tag) => (
+                      <option key={tag.value} value={tag.value} title={tag.description}>
+                        {tag.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Hold Ctrl/Cmd to select multiple tags for special styling
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">Description</label>
@@ -428,6 +475,43 @@ export default function SubscriptionManagementPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteModal && deletingPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">
+              <div className="text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-destructive/10 rounded-full mb-4">
+                  <svg className="w-6 h-6 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">Delete Plan</h3>
+                <p className="text-muted-foreground mb-6">
+                  Are you sure you want to delete the plan <strong>"{deletingPlan.name}"</strong>? 
+                  This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={confirmDeletePlan}
+                    className="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+                  >
+                    Delete Plan
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeletingPlan(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

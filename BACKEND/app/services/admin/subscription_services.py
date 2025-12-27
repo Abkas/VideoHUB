@@ -17,6 +17,30 @@ def get_all_subscription_plans():
 
 def create_subscription_plan(plan_data: dict) -> str:
     """Create a new subscription plan"""
+    # Validate required fields
+    if not plan_data.get('name'):
+        raise ValueError("Plan name is required")
+    if not isinstance(plan_data.get('duration_seconds', 0), int) or plan_data.get('duration_seconds', 0) <= 0:
+        raise ValueError("Duration must be a positive integer in seconds")
+    if not isinstance(plan_data.get('price', 0), (int, float)) or plan_data.get('price', 0) < 0:
+        raise ValueError("Price must be a non-negative number")
+
+    # Clean and validate tags
+    allowed_tags = ['most popular', 'loved', 'best value']
+    tags = plan_data.get('tags', [])
+    if not isinstance(tags, list):
+        tags = []
+    # Remove empty strings and duplicates, and validate against allowed tags
+    cleaned_tags = []
+    for tag in tags:
+        if tag and isinstance(tag, str):
+            cleaned_tag = tag.strip()
+            if cleaned_tag in allowed_tags:
+                cleaned_tags.append(cleaned_tag)
+    # Remove duplicates
+    tags = list(set(cleaned_tags))
+    plan_data['tags'] = tags
+
     plan_data['created_at'] = datetime.utcnow()
     plan_data['updated_at'] = datetime.utcnow()
     plan_data['status'] = 'active'
@@ -27,6 +51,32 @@ def create_subscription_plan(plan_data: dict) -> str:
 
 def update_subscription_plan(plan_id: str, update_data: dict):
     """Update a subscription plan"""
+    # Validate fields if provided
+    if 'duration_seconds' in update_data:
+        if not isinstance(update_data['duration_seconds'], int) or update_data['duration_seconds'] <= 0:
+            raise ValueError("Duration must be a positive integer in seconds")
+    
+    if 'price' in update_data:
+        if not isinstance(update_data['price'], (int, float)) or update_data['price'] < 0:
+            raise ValueError("Price must be a non-negative number")
+
+    # Clean and validate tags if provided
+    if 'tags' in update_data:
+        allowed_tags = ['most popular', 'loved', 'best value']
+        tags = update_data['tags']
+        if not isinstance(tags, list):
+            tags = []
+        # Remove empty strings and duplicates, and validate against allowed tags
+        cleaned_tags = []
+        for tag in tags:
+            if tag and isinstance(tag, str):
+                cleaned_tag = tag.strip()
+                if cleaned_tag in allowed_tags:
+                    cleaned_tags.append(cleaned_tag)
+        # Remove duplicates
+        tags = list(set(cleaned_tags))
+        update_data['tags'] = tags
+
     update_data['updated_at'] = datetime.utcnow()
     db['subscription_plans'].update_one(
         {'_id': ObjectId(plan_id)},
@@ -37,11 +87,15 @@ def update_subscription_plan(plan_id: str, update_data: dict):
 
 def delete_subscription_plan(plan_id: str) -> bool:
     """Delete a subscription plan (soft delete by setting status to inactive)"""
-    result = db['subscription_plans'].update_one(
-        {'_id': ObjectId(plan_id)},
-        {'$set': {'status': 'inactive', 'updated_at': datetime.utcnow()}}
-    )
-    return result.modified_count > 0
+    try:
+        result = db['subscription_plans'].update_one(
+            {'_id': ObjectId(plan_id)},
+            {'$set': {'status': 'inactive', 'updated_at': datetime.utcnow()}}
+        )
+        return result.modified_count > 0
+    except Exception as e:
+        print(f"Error deleting plan {plan_id}: {e}")
+        return False
 
 
 def get_subscription_plan_by_id(plan_id: str):
@@ -70,6 +124,22 @@ def get_subscription_stats():
         'expires_at': {'$lte': now}
     })
     
+    # Calculate total income earned
+    total_income = 0.0
+    all_subscriptions = list(db['time_subscriptions'].find({}, {'plan_id': 1}))
+    
+    for sub in all_subscriptions:
+        plan_id = sub.get('plan_id')
+        if plan_id:
+            try:
+                # plan_id is stored as string, convert to ObjectId
+                plan = db['subscription_plans'].find_one({'_id': ObjectId(plan_id)}, {'price': 1})
+                if plan and 'price' in plan:
+                    total_income += plan['price']
+            except:
+                # Skip invalid plan_ids
+                pass
+    
     # Get subscription history (recent purchases)
     recent_subscriptions = list(
         db['time_subscriptions'].find()
@@ -90,6 +160,7 @@ def get_subscription_stats():
         'active_users': active_subscriptions,
         'total_subscriptions': total_subscriptions,
         'expired_subscriptions': expired_subscriptions,
+        'total_income': total_income,
         'recent_subscriptions': recent_subscriptions
     }
 

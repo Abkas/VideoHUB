@@ -18,21 +18,33 @@ router = APIRouter(prefix="/admin/subscriptions", tags=["Admin Subscriptions"])
 
 class PlanCreate(BaseModel):
     name: str
-    duration_seconds: int  # Duration in seconds
-    price: float
+    duration_seconds: int  # Duration in seconds (must be > 0)
+    price: float  # Price must be >= 0
     currency: str = "Rs."
-    tags: List[str] = []
+    tags: List[str] = []  # Tags for UI customization (e.g., "Popular", "Best Value", "Premium")
     description: Optional[str] = None
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "name": "Premium Plan",
+                "duration_seconds": 604800,  # 7 days
+                "price": 399.0,
+                "currency": "Rs.",
+                "tags": ["Premium", "Best Value"],
+                "description": "Get unlimited access with premium features"
+            }
+        }
 
 
 class PlanUpdate(BaseModel):
     name: Optional[str] = None
-    duration_seconds: Optional[int] = None
-    price: Optional[float] = None
+    duration_seconds: Optional[int] = None  # Duration in seconds (must be > 0)
+    price: Optional[float] = None  # Price must be >= 0
     currency: Optional[str] = None
-    tags: Optional[List[str]] = None
+    tags: Optional[List[str]] = None  # Tags for UI customization (e.g., "Popular", "Best Value", "Premium")
     description: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[str] = None  # "active" or "inactive"
 
 
 @router.get("/stats")
@@ -91,6 +103,18 @@ def get_plan(plan_id: str, admin: dict = Depends(get_admin_user)):
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
     return plan
+
+
+@router.get("/tags")
+def get_available_tags(admin: dict = Depends(get_admin_user)):
+    """Get available tags for subscription plans"""
+    return {
+        "tags": [
+            {"value": "most popular", "label": "Most Popular", "description": "Highlights the plan as the most popular choice"},
+            {"value": "loved", "label": "Loved", "description": "Shows the plan is loved by users"},
+            {"value": "best value", "label": "Best Value", "description": "Indicates the plan offers the best value"}
+        ]
+    }
 
 
 @router.get("/history")

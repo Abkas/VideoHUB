@@ -29,7 +29,7 @@ def get_status(current_user: dict = Depends(get_current_user)):
 def subscribe(request: SubscribeRequest, current_user: dict = Depends(get_current_user)):
     """
     Subscribe to a plan or extend existing subscription
-    Accepts plan_id: "30_min", "1_hour", "1_day", "1_week"
+    Accepts plan_id: MongoDB ObjectId of a subscription plan from the database
     """
     try:
         result = subscribe_user(current_user['user_id'], request.plan_id)
