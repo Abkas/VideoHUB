@@ -9,7 +9,7 @@ from app.routes.user import user_routes, payment_transaction_routes, subscriptio
 from app.routes.utility import playlist_routes, category_routes, tag_routes
 from app.routes.video import comment_routes, like_routes, video_routes, view_routes
 from app.routes.admin import admin_routes
-from app.routes.admin import subscription_routes as admin_subscription_routes
+# Note: Old admin subscription routes removed - using new time-based system
 
 load_dotenv()
 
@@ -64,4 +64,5 @@ app.include_router(view_routes.router)
 
 # Admin routes
 app.include_router(admin_routes.router)
+from app.routes.admin import subscription_routes as admin_subscription_routes
 app.include_router(admin_subscription_routes.router)

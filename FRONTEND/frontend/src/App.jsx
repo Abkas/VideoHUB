@@ -9,6 +9,7 @@ import ProfilePage from "./pages/publicPages/mainPages/ProfilePage";
 import PublicUserProfilePage from "./pages/publicPages/mainPages/PublicUserProfilePage";
 import UserAccountSetting from "./pages/publicPages/mainPages/UserAccountSetting";
 import UserSubscriptionsPage from "./pages/publicPages/mainPages/UserSubscriptionsPage";
+import SubscriptionPlansPage from "./pages/publicPages/mainPages/SubscriptionPlansPage";
 import Guidelines from "./pages/publicPages/subPages/Guidelines";
 import Terms from "./pages/publicPages/subPages/Terms";
 import PrivacyPage from "./pages/publicPages/subPages/PrivacyPage";
@@ -18,10 +19,9 @@ import AdminVideoManagement from "./pages/adminPages/mainPages/AdminVideoManagem
 import AdminUserManagement from "./pages/adminPages/mainPages/AdminUserManagement";
 import AdminReportManagement from "./pages/adminPages/mainPages/AdminReportManagement";
 import AdminCategoryAndTags from "./pages/adminPages/mainPages/AdminCategoryAndTags";
+import SubscriptionManagementPage from "./pages/adminPages/mainPages/SubscriptionManagementPage";
 import UserDetailPage from "./pages/adminPages/subPages/UserDetailPage";
 import VideoDetailPage from "./pages/adminPages/subPages/VideoDetailPage";
-import SubscriptionManagementPage from "./pages/adminPages/mainPages/SubscriptionManagementPage";import SubscriptionDetailPage from "./pages/adminPages/subPages/SubscriptionDetailPage";
-import PricingPage from "./pages/publicPages/subPages/PricingPage";
 
 const App = () => (
   <AuthorizerProvider>
@@ -34,13 +34,13 @@ const App = () => (
         <Route path="/signup" element={<RegisterPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/subscriptions" element={<UserSubscriptionsPage />} />
+        <Route path="/subscriptions/plans" element={<SubscriptionPlansPage />} />
         <Route path="/user/:id" element={<PublicUserProfilePage />} />
         <Route path="/settings" element={<UserAccountSetting />} />
         <Route path="/guidelines" element={<Guidelines />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/report" element={<ReportPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/videos" element={<AdminVideoManagement />} />
         <Route path="/admin/videos/:videoId" element={<VideoDetailPage />} />
@@ -49,7 +49,6 @@ const App = () => (
         <Route path="/admin/reports" element={<AdminReportManagement />} />
         <Route path="/admin/categories" element={<AdminCategoryAndTags />} />
         <Route path="/admin/subscriptions" element={<SubscriptionManagementPage />} />
-        <Route path="/admin/subscriptions/:subscriptionId" element={<SubscriptionDetailPage />} />
       </Routes>
     </BrowserRouter>
   </AuthorizerProvider>

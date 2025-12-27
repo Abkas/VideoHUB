@@ -1,386 +1,302 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, Home, Grid, User, Settings, FileText, Shield, LogOut, Crown, Calendar, CreditCard, CheckCircle, XCircle, Clock } from 'lucide-react';
-import { verifyToken } from '../../../api/publicAPI/userApi';
-import { getAllMySubscriptions, cancelMySubscription, getMySubscriptionHistory } from '../../../api/publicAPI/subscriptionApi';
-import SubscriptionCard from '../../../components/SubscriptionCard';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, Plus, AlertCircle } from 'lucide-react';
+import { getSubscriptionStatus, extendSubscription, getSubscriptionPlans } from '../../../api/publicAPI/subscriptionApi';
+import { useAuthorizer } from '../../../Auth/Authorizer';
+import NavigationBar from '../../../components/NavigationBar';
 import toast from 'react-hot-toast';
 
 export default function UserSubscriptionsPage() {
   const navigate = useNavigate();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { isAuthenticated, loading: authLoading } = useAuthorizer();
+  const [status, setStatus] = useState(null);
+  const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [userSubscriptions, setUserSubscriptions] = useState([]);
-  const [userData, setUserData] = useState(null);
-  const [cancellingSubscription, setCancellingSubscription] = useState(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [subscriptionHistory, setSubscriptionHistory] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [extending, setExtending] = useState(null);
+  const [showExtendModal, setShowExtendModal] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  // Store previous countdown for optimistic update rollback
+  const previousCountdownRef = useRef(0);
+  // Track if we're in an optimistic update state
+  const [isOptimisticUpdate, setIsOptimisticUpdate] = useState(false);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    // Wait for auth to finish loading
+    if (authLoading) return;
+    
+    if (!isAuthenticated) {
+      toast.error('Please login to view your subscription');
+      navigate('/login');
+      return;
+    }
+    fetchStatus();
+    fetchPlans();
+  }, [isAuthenticated, authLoading, navigate]);
 
-  const fetchData = async () => {
+  // Fetch subscription status
+  const fetchStatus = async () => {
     try {
-      setLoading(true);
-
-      // Verify user is logged in
-      const { isValid, user } = await verifyToken();
-      if (!isValid) {
-        toast.error("Please login to view subscriptions");
-        navigate("/login");
-        return;
+      const data = await getSubscriptionStatus();
+      setStatus(data);
+      // Set countdown from server (server time is source of truth)
+      if (data.is_active && data.remaining_seconds > 0) {
+        setCountdown(data.remaining_seconds);
+      } else {
+        setCountdown(0);
       }
-      setUserData(user);
-
-      // Fetch user's subscriptions
-      try {
-        const subscriptionsData = await getAllMySubscriptions();
-        setUserSubscriptions(subscriptionsData.subscriptions || []);
-      } catch (error) {
-        console.error('Error fetching user subscriptions:', error);
-        setUserSubscriptions([]);
-      }
-
     } catch (error) {
-      console.error('Error fetching subscription data:', error);
-      toast.error('Failed to load subscription data');
+      console.error('Error fetching status:', error);
+      if (!loading) {
+        // Only show error if not initial load
+        toast.error('Failed to load subscription status');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  // Fetch plans for extend modal
+  const fetchPlans = async () => {
+    try {
+      const response = await getSubscriptionPlans();
+      setPlans(response.plans || []);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+    }
   };
 
-  const handleCancelSubscription = async (subscriptionId) => {
-    if (!confirm('Are you sure you want to cancel this subscription? You will lose access at the end of the billing period.')) {
+  // Countdown timer effect - sync with server every 30 seconds
+  useEffect(() => {
+    if (!status?.is_active || countdown <= 0) {
       return;
     }
 
+    // Sync with server every 30 seconds to stay accurate
+    const syncInterval = setInterval(() => {
+      fetchStatus();
+    }, 30000);
+
+    // Update countdown every second
+    const countdownInterval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          // Expired, refresh status
+          fetchStatus();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      clearInterval(syncInterval);
+      clearInterval(countdownInterval);
+    };
+  }, [status?.is_active]);
+
+  // Format countdown to hh:mm:ss
+  const formatCountdown = (seconds) => {
+    if (seconds <= 0) return '00:00:00';
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const handleExtend = async (planId) => {
+    // Find the plan from fetched plans to get duration_seconds
+    const selectedPlan = plans.find(p => p.plan_id === planId);
+    if (!selectedPlan || !selectedPlan.duration_seconds) {
+      toast.error('Invalid plan selected');
+      return;
+    }
+
+    const planDuration = selectedPlan.duration_seconds;
+
+    // Store current countdown for potential rollback
+    previousCountdownRef.current = countdown;
+    
+    // Optimistic update: immediately add the plan duration to current countdown
+    // If subscription is expired (countdown is 0), start from the plan duration
+    // Otherwise, add to existing time
+    const newCountdown = countdown > 0 ? countdown + planDuration : planDuration;
+    setCountdown(newCountdown);
+    setIsOptimisticUpdate(true);
+    
+    // Update status optimistically
+    setStatus(prev => ({
+      ...prev,
+      is_active: true,
+      remaining_seconds: newCountdown
+    }));
+
     try {
-      setCancellingSubscription(subscriptionId);
-      console.log('🗑️ Cancelling subscription:', subscriptionId);
-
-      await cancelMySubscription(subscriptionId);
-      console.log('✅ Subscription cancelled successfully');
-
-      toast.success('Subscription cancelled successfully');
-
-      // Refresh subscriptions
-      const subscriptionsData = await getAllMySubscriptions();
-      setUserSubscriptions(subscriptionsData.subscriptions || []);
-
-    } catch (error) {
-      console.error('❌ Error cancelling subscription:', error);
-      toast.error('Failed to cancel subscription. Please try again.');
-    } finally {
-      setCancellingSubscription(null);
-    }
-  };
-
-  const handleToggleHistory = async () => {
-    if (!showHistory && subscriptionHistory.length === 0) {
-      // Fetch history if not already loaded
-      try {
-        setLoadingHistory(true);
-        console.log('📚 Fetching subscription history...');
-
-        const historyData = await getMySubscriptionHistory();
-        console.log('📖 Subscription history:', historyData);
-
-        setSubscriptionHistory(historyData.subscriptions || []);
-      } catch (error) {
-        console.error('❌ Error fetching subscription history:', error);
-        toast.error('Failed to load subscription history');
-      } finally {
-        setLoadingHistory(false);
+      setExtending(planId);
+      
+      // Make API call
+      const result = await extendSubscription(planId);
+      
+      // Update with server response (source of truth)
+      if (result.remaining_seconds > 0) {
+        setCountdown(result.remaining_seconds);
+        setStatus(prev => ({
+          ...prev,
+          ...result,
+          is_active: true
+        }));
       }
+      
+      toast.success('Subscription extended successfully!');
+      setShowExtendModal(false);
+      
+      // Refresh status to ensure sync
+      await fetchStatus();
+    } catch (error) {
+      console.error('Error extending subscription:', error);
+      
+      // Rollback optimistic update on error
+      setCountdown(previousCountdownRef.current);
+      setStatus(prev => ({
+        ...prev,
+        is_active: prev?.is_active || false,
+        remaining_seconds: previousCountdownRef.current
+      }));
+      
+      toast.error(error.response?.data?.detail || 'Failed to extend subscription');
+    } finally {
+      setExtending(null);
+      setIsOptimisticUpdate(false);
     }
-    setShowHistory(!showHistory);
   };
 
-  const getCurrentPlanName = () => {
-    const activeSub = userSubscriptions.find(sub => sub.status === 'active');
-    if (!activeSub) return null;
-    return activeSub.plan_name?.toLowerCase().replace(' ', '_') || null;
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'cancelled':
-        return <XCircle className="w-4 h-4" />;
-      case 'expired':
-        return <Clock className="w-4 h-4" />;
-      case 'pending':
-        return <Clock className="w-4 h-4" />;
-      default:
-        return <Clock className="w-4 h-4" />;
-    }
-  };
-
-  if (loading) {
+  // Show loading while auth is checking or subscription is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
-        <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">VH</span>
-            </div>
-            <span className="font-bold text-foreground">StreamHub</span>
-          </Link>
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="p-2 hover:bg-secondary rounded-lg transition-colors"
-          >
-            <Menu className="w-5 h-5 text-foreground" />
-          </button>
-        </header>
+        <NavigationBar />
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-muted-foreground">Loading subscriptions...</p>
+            <p className="mt-4 text-muted-foreground">
+              {authLoading ? 'Checking authentication...' : 'Loading subscription...'}
+            </p>
           </div>
         </div>
       </div>
     );
   }
 
+  const isActive = status?.is_active && countdown > 0;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">VH</span>
-          </div>
-          <span className="font-bold text-foreground">VideoHUB</span>
-        </Link>
-        <button
-          onClick={() => setMenuOpen(true)}
-          className="p-2 hover:bg-secondary rounded-lg transition-colors"
-        >
-          <Menu className="w-5 h-5 text-foreground" />
-        </button>
-      </header>
+      <NavigationBar />
 
-      {/* Slide-in Menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50">
-          <div
-            className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div className="absolute left-0 top-0 bottom-0 w-72 bg-card border-r border-border animate-slide-in">
-            <div className="flex items-center justify-between p-4 border-b border-border">
-              <span className="text-lg font-bold text-primary">Menu</span>
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="p-2 hover:bg-secondary rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-foreground" />
-              </button>
-            </div>
-            <nav className="p-2">
-              <Link to="/" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Home className="w-5 h-5" />
-                <span>Home</span>
-              </Link>
-              <Link to="/browse" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Grid className="w-5 h-5" />
-                <span>Browse</span>
-              </Link>
-              <Link to="/profile" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <User className="w-5 h-5" />
-                <span>Profile</span>
-              </Link>
-              <Link to="/subscriptions" className="flex items-center gap-3 px-4 py-3 bg-secondary text-foreground rounded-lg">
-                <Crown className="w-5 h-5" />
-                <span>Subscriptions</span>
-              </Link>
-              <Link to="/settings" className="flex items-center gap-3 px-4 py-3 text-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Settings className="w-5 h-5" />
-                <span>Account Settings</span>
-              </Link>
-              <div className="my-2 border-t border-border" />
-              <Link to="/guidelines" className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-secondary rounded-lg transition-colors">
-                <Shield className="w-5 h-5" />
-                <span>Community Guidelines</span>
-              </Link>
-              <Link to="/terms" className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-secondary rounded-lg transition-colors">
-                <FileText className="w-5 h-5" />
-                <span>Terms of Service</span>
-              </Link>
-              <Link to="/privacy" className="flex items-center gap-3 px-4 py-3 text-muted-foreground hover:bg-secondary rounded-lg transition-colors">
-                <FileText className="w-5 h-5" />
-                <span>Privacy Policy</span>
-              </Link>
-              <div className="my-2 border-t border-border" />
-              <Link to="/login" className="flex items-center gap-3 px-4 py-3 text-destructive hover:bg-secondary rounded-lg transition-colors">
-                <LogOut className="w-5 h-5" />
-                <span>Logout</span>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      )}
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-foreground mb-8">My Subscription</h1>
 
-      {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground mb-2">My Subscriptions</h1>
-          <p className="text-muted-foreground">Manage your subscription plans and view your history</p>
-        </div>
+        {/* Subscription Status Card */}
+        <div className="bg-card border border-border rounded-xl p-8 shadow-lg mb-6">
+          {isActive ? (
+            <>
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
+                  <Clock className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground mb-2">Active Subscription</h2>
+                <p className="text-muted-foreground">Watch all videos ad-free</p>
+              </div>
 
-        {/* My Subscriptions */}
-        <div className="mb-8">
-          {userSubscriptions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userSubscriptions.map((subscription) => {
-                // Transform subscription data to match SubscriptionCard format
-                const planData = {
-                  name: subscription.plan_name || subscription.name || 'Premium',
-                  display_name: subscription.plan_name || subscription.name || 'Premium Plan',
-                  description: `Active subscription - ${subscription.status || 'Active'}`,
-                  features: [
-                    `Status: ${subscription.status || 'Active'}`,
-                    `Duration: ${subscription.billing_cycle || subscription.duration || 'Monthly'}`,
-                    `Payment: ${subscription.currency === 'NPR' ? 'Rs.' : '₹'}${subscription.amount || '999'}`,
-                    `Started: ${formatDate(subscription.created_at || subscription.start_date)}`
-                  ],
-                  price_inr: subscription.amount || 999,
-                  price_npr: subscription.amount || 999,
-                  price_usd: subscription.amount || 999
-                };
-
-                return (
-                  <div key={subscription.id || subscription._id} className="relative">
-                    <SubscriptionCard
-                      plan={planData}
-                      currency={subscription.currency || 'INR'}
-                      billingCycle={subscription.billing_cycle || 'monthly'}
-                      onSelect={() => {}}
-                      currentPlan={subscription.status === 'active' ? subscription.plan_name?.toLowerCase().replace(' ', '_') : null}
-                      isPopular={subscription.status === 'active'}
-                    />
-                    <div className="absolute top-2 right-2 flex gap-2">
-                      <button className="px-2 py-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded text-xs transition-colors">
-                        View Details
-                      </button>
-                      {subscription.status === 'active' && (
-                        <button
-                          onClick={() => handleCancelSubscription(subscription.id || subscription._id)}
-                          disabled={cancellingSubscription === (subscription.id || subscription._id)}
-                          className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors disabled:opacity-50"
-                        >
-                          {cancellingSubscription === (subscription.id || subscription._id) ? 'Cancelling...' : 'Cancel'}
-                        </button>
-                      )}
-                    </div>
+              {/* Countdown Timer */}
+              <div className="bg-background rounded-lg p-6 mb-6">
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-2">Time Remaining</p>
+                  <div 
+                    className={`text-5xl font-mono font-bold text-primary mb-2 transition-all duration-300 ${
+                      isOptimisticUpdate ? 'scale-110 animate-pulse' : ''
+                    }`}
+                  >
+                    {formatCountdown(countdown)}
                   </div>
-                );
-              })}
-            </div>
+                  {isOptimisticUpdate && (
+                    <p className="text-xs text-primary mb-1 animate-pulse">
+                      Updating...
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {status.expires_at
+                      ? `Expires: ${new Date(status.expires_at).toLocaleString()}`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+
+              {/* Extend Button */}
+              <div className="text-center">
+                <button
+                  onClick={() => setShowExtendModal(true)}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                >
+                  <Plus className="w-5 h-5" />
+                  Extend Time
+                </button>
+              </div>
+            </>
           ) : (
-            <div className="bg-card border border-border rounded-lg p-6 text-center">
-              <Crown className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No Subscriptions Yet</h3>
-              <p className="text-muted-foreground mb-4">
-                You haven't purchased any subscriptions yet. Visit the pricing page to get started.
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-destructive/10 rounded-full mb-4">
+                <AlertCircle className="w-8 h-8 text-destructive" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">Subscription Expired</h2>
+              <p className="text-muted-foreground mb-6">
+                Your subscription has expired. Subscribe to continue watching ad-free.
               </p>
-              <Link
-                to="/pricing"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+              <button
+                onClick={() => navigate('/subscriptions/plans')}
+                className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity"
               >
-                <Crown className="w-4 h-4" />
                 View Plans
-              </Link>
+              </button>
             </div>
           )}
         </div>
 
-        {/* History Toggle */}
-        <div className="mt-6 text-center">
-          <button
-            onClick={handleToggleHistory}
-            className="px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground rounded-lg transition-colors flex items-center gap-2 mx-auto"
-          >
-            <Calendar className="w-4 h-4" />
-            {showHistory ? 'Hide History' : 'View Subscription History'}
-          </button>
-        </div>
+        {/* Extend Modal */}
+        {showExtendModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-foreground">Extend Subscription</h3>
+                <button
+                  onClick={() => setShowExtendModal(false)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
 
-        {/* Subscription History */}
-        {showHistory && (
-          <div className="mt-8">
-            <h2 className="text-xl font-bold text-foreground mb-4">Subscription History</h2>
-
-            {loadingHistory ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="ml-2 text-muted-foreground">Loading history...</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {plans.map((plan) => (
+                  <div
+                    key={plan.plan_id}
+                    className="border border-border rounded-lg p-4 hover:border-primary transition-colors"
+                  >
+                    <h4 className="font-semibold text-foreground mb-2">{plan.name}</h4>
+                    <p className="text-sm text-muted-foreground mb-2">{plan.duration_display}</p>
+                    <p className="text-lg font-bold text-foreground mb-4">
+                      {plan.currency} {plan.price}
+                    </p>
+                    <button
+                      onClick={() => handleExtend(plan.plan_id)}
+                      disabled={extending === plan.plan_id}
+                      className="w-full py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {extending === plan.plan_id ? 'Processing...' : `Extend ${plan.name}`}
+                    </button>
+                  </div>
+                ))}
               </div>
-            ) : subscriptionHistory.length > 0 ? (
-              <div className="bg-card border border-border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-secondary/50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Plan</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Status</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Amount</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Start Date</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">End Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {subscriptionHistory.map((subscription) => (
-                        <tr key={subscription.id || subscription._id} className="border-t border-border">
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {subscription.plan_name || subscription.name || 'Unknown'}
-                          </td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              subscription.status === 'active' ? 'bg-green-100 text-green-800' :
-                              subscription.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {subscription.status || 'Unknown'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {subscription.currency === 'NPR' ? 'Rs.' : '₹'}{subscription.amount || '0'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {formatDate(subscription.created_at || subscription.start_date)}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-foreground">
-                            {subscription.expires_at ? formatDate(subscription.expires_at) : 'N/A'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-card border border-border rounded-lg p-6 text-center">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">No History Available</h3>
-                <p className="text-muted-foreground">
-                  Your subscription history will appear here once you have past subscriptions.
-                </p>
-              </div>
-            )}
+            </div>
           </div>
         )}
       </main>

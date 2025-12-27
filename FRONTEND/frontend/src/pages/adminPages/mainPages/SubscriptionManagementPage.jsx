@@ -1,748 +1,437 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Crown, Users, Clock, Plus, Edit, Trash2, 
+  TrendingUp, AlertCircle, CheckCircle, XCircle 
+} from 'lucide-react';
 import {
-  getAllSubscriptions,
   getSubscriptionStats,
-  extendSubscription,
-  createSubscription,
-  deleteSubscription,
-  updateSubscription,
+  getSubscriptionHistory,
+  getSubscriptionPlans,
+  createSubscriptionPlan,
+  updateSubscriptionPlan,
+  deleteSubscriptionPlan
 } from '../../../api/adminAPI/subscriptionApi';
 import toast from 'react-hot-toast';
-import {
-  Crown, Users, Clock, DollarSign,
-  Search, CheckCircle, Plus, ArrowLeft, Shield, AlertCircle
-} from 'lucide-react';
-import SubscriptionCard from '../subPages/SubscriptionCard';
 
 export default function SubscriptionManagementPage() {
   const navigate = useNavigate();
-  const [subscriptions, setSubscriptions] = useState([]);
   const [stats, setStats] = useState(null);
+  const [plans, setPlans] = useState([]);
+  const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [planFilter, setPlanFilter] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [showExtendModal, setShowExtendModal] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [selectedSubscription, setSelectedSubscription] = useState(null);
-  const [extendDays, setExtendDays] = useState(30);
-  const [editSubscription, setEditSubscription] = useState({
-    subscription_name: '',
-    plan: 'basic',
-    duration_value: 1,
-    duration_unit: 'month',
-    status: 'active',
-    currency: 'INR',
-    custom_price: '',
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [planForm, setPlanForm] = useState({
+    name: '',
+    duration_seconds: 1800, // 30 minutes default
+    price: 0,
+    currency: 'Rs.',
+    tags: [],
     description: ''
   });
-  const [newSubscription, setNewSubscription] = useState({
-    subscription_name: '',
-    plan: 'basic',
-    duration_value: 1,
-    duration_unit: 'month',
-    status: 'active',
-    currency: 'INR',
-    custom_price: '',
-    description: ''
-  });
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyTotal, setHistoryTotal] = useState(0);
+
+  useEffect(() => {
+    fetchData();
+  }, [historyPage]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [subscriptionsData, statsData] = await Promise.all([
-        getAllSubscriptions({
-          skip: (page - 1) * 20,
-          limit: 20,
-          status: statusFilter || undefined,
-          plan: planFilter || undefined,
-          search: searchTerm || undefined
-        }),
-        getSubscriptionStats()
+      const [statsData, plansData, historyData] = await Promise.all([
+        getSubscriptionStats(),
+        getSubscriptionPlans(),
+        getSubscriptionHistory((historyPage - 1) * 20, 20)
       ]);
-
-      setSubscriptions(subscriptionsData.subscriptions);
-      setTotalPages(Math.ceil(subscriptionsData.total / 20));
       setStats(statsData);
+      setPlans(plansData.plans || []);
+      setHistory(historyData.subscriptions || []);
+      setHistoryTotal(historyData.total || 0);
     } catch (error) {
-      toast.error(error.message || 'Failed to load subscriptions');
+      console.error('Error fetching data:', error);
+      toast.error('Failed to load subscription data');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, statusFilter, planFilter, searchTerm]);
-
-  const handleExtendSubscription = async () => {
-    if (!selectedSubscription) return;
-
-    try {
-      await extendSubscription(selectedSubscription.id, extendDays);
-      toast.success(`Subscription extended by ${extendDays} days`);
-      setShowExtendModal(false);
-      setSelectedSubscription(null);
-      fetchData();
-    } catch (error) {
-      toast.error(error.message || 'Failed to extend subscription');
-    }
+  const formatDuration = (seconds) => {
+    if (seconds < 60) return `${seconds}s`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
+    return `${Math.floor(seconds / 86400)}d`;
   };
 
-  const handleCreateSubscription = async () => {
-    if (!newSubscription.subscription_name) {
-      toast.error('Please enter a Subscription Name');
-      return;
-    }
+  const formatDurationInput = (seconds) => {
+    if (seconds < 60) return { value: seconds, unit: 'seconds' };
+    if (seconds < 3600) return { value: Math.floor(seconds / 60), unit: 'minutes' };
+    if (seconds < 86400) return { value: Math.floor(seconds / 3600), unit: 'hours' };
+    return { value: Math.floor(seconds / 86400), unit: 'days' };
+  };
 
+  const parseDurationInput = (value, unit) => {
+    const multipliers = {
+      seconds: 1,
+      minutes: 60,
+      hours: 3600,
+      days: 86400
+    };
+    return Math.floor(value * (multipliers[unit] || 1));
+  };
+
+  const handleCreatePlan = async (e) => {
+    e.preventDefault();
     try {
-      await createSubscription(newSubscription);
-      toast.success('Subscription plan created successfully');
-      setShowCreateModal(false);
-      setNewSubscription({
-        subscription_name: '',
-        plan: 'basic',
-        duration_value: 1,
-        duration_unit: 'month',
-        status: 'active',
-        currency: 'INR',
-        custom_price: '',
+      if (editingPlan) {
+        await updateSubscriptionPlan(editingPlan.id, planForm);
+        toast.success('Plan updated successfully');
+      } else {
+        await createSubscriptionPlan(planForm);
+        toast.success('Plan created successfully');
+      }
+      setShowPlanModal(false);
+      setEditingPlan(null);
+      setPlanForm({
+        name: '',
+        duration_seconds: 1800,
+        price: 0,
+        currency: 'Rs.',
+        tags: [],
         description: ''
       });
       fetchData();
     } catch (error) {
-      toast.error(error.message || 'Failed to create subscription');
+      console.error('Error saving plan:', error);
+      toast.error(error.response?.data?.detail || 'Failed to save plan');
     }
   };
 
-  const handleDeleteSubscription = async (subscriptionId) => {
-    setSelectedSubscription(subscriptionId);
-    setShowDeleteModal(true);
-  };
-
-  const confirmDelete = async () => {
-    try {
-      await deleteSubscription(selectedSubscription);
-      toast.success('Subscription deleted successfully');
-      setShowDeleteModal(false);
-      setSelectedSubscription(null);
-      fetchData();
-    } catch (error) {
-      toast.error(error.message || 'Failed to delete subscription');
-    }
-  };
-
-  const handleEditClick = (subscription) => {
-    setEditSubscription({
-      id: subscription.id,
-      subscription_name: subscription.subscription_name,
-      plan: subscription.plan,
-      duration_value: subscription.duration_value,
-      duration_unit: subscription.duration_unit,
-      status: subscription.status,
-      currency: subscription.currency,
-      custom_price: subscription.price,
-      description: subscription.description || ''
+  const handleEditPlan = (plan) => {
+    setEditingPlan(plan);
+    setPlanForm({
+      name: plan.name || '',
+      duration_seconds: plan.duration_seconds || 1800,
+      price: plan.price || 0,
+      currency: plan.currency || 'Rs.',
+      tags: plan.tags || [],
+      description: plan.description || ''
     });
-    setShowEditModal(true);
+    setShowPlanModal(true);
   };
 
-  const handleUpdateSubscription = async () => {
-    if (!editSubscription.subscription_name) {
-      toast.error('Please enter a Subscription Name');
-      return;
-    }
-
+  const handleDeletePlan = async (planId) => {
+    if (!confirm('Are you sure you want to delete this plan?')) return;
     try {
-      const { id, ...updateData } = editSubscription;
-      // Transform custom_price to price for API
-      if (updateData.custom_price !== undefined) {
-        updateData.price = updateData.custom_price;
-        delete updateData.custom_price;
-      }
-      await updateSubscription(id, updateData);
-      toast.success('Subscription plan updated successfully');
-      setShowEditModal(false);
+      await deleteSubscriptionPlan(planId);
+      toast.success('Plan deleted successfully');
       fetchData();
     } catch (error) {
-      toast.error(error.message || 'Failed to update subscription');
+      console.error('Error deleting plan:', error);
+      toast.error('Failed to delete plan');
     }
   };
 
-  const getStatusBadge = (status) => {
-    const badges = {
-      active: 'bg-green-900 text-green-300',
-      trial: 'bg-blue-900 text-blue-300',
-      expired: 'bg-red-900 text-red-300',
-      cancelled: 'bg-gray-800 text-gray-300',
-      pending: 'bg-yellow-900 text-yellow-300'
-    };
-    return badges[status] || 'bg-gray-800 text-gray-300';
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
   };
 
-  const getPlanColor = (plan) => {
-    const colors = {
-      free: 'text-gray-400',
-      basic: 'text-blue-400',
-      premium: 'text-purple-400',
-      premium_plus: 'text-yellow-400'
-    };
-    return colors[plan] || 'text-gray-400';
-  };
-
-  const formatCurrency = (amount, currency = 'USD') => {
-    if (!amount && amount !== 0) return 'N/A';
-    const symbols = { INR: '₹', NPR: 'Rs.', USD: '$' };
-    return `${symbols[currency] || '$'}${Number(amount).toFixed(2)}`;
-  };
-
-  if (loading && !stats) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading subscriptions...</p>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-card border-b border-border">
-        <div className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="text-lg font-bold text-foreground">Admin Panel</span>
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-foreground mb-6">Subscription Management</h1>
+
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Users className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Active Users</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.active_users || 0}</p>
+              </div>
             </div>
-            <button 
-              onClick={() => navigate('/admin')}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Total Subscriptions</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.total_subscriptions || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
+                <XCircle className="w-6 h-6 text-destructive" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Expired</p>
+                <p className="text-2xl font-bold text-foreground">{stats?.expired_subscriptions || 0}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Plans Section */}
+        <div className="bg-card border border-border rounded-xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-foreground">Subscription Plans</h2>
+            <button
+              onClick={() => {
+                setEditingPlan(null);
+                setPlanForm({
+                  name: '',
+                  duration_seconds: 1800,
+                  price: 0,
+                  currency: 'Rs.',
+                  tags: [],
+                  description: ''
+                });
+                setShowPlanModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
             >
-              <ArrowLeft className="w-5 h-5" />
-              <span className="hidden sm:inline">Back</span>
+              <Plus className="w-4 h-4" />
+              Create Plan
             </button>
           </div>
-        </div>
-      </header>
 
-      <main className="max-w-[1280px] mx-auto px-2 sm:px-3 md:px-4 py-6">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Subscription Plans</h1>
-            <p className="text-muted-foreground">Create and manage subscription plan templates</p>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Create Plan</span>
-          </button>
-        </div>
-
-      {/* Stats Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Users className="w-8 h-8 text-blue-400" />
-              <span className="text-2xl font-bold text-foreground">{stats.total_subscriptions}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Total Subscriptions</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-8 h-8 text-green-400" />
-              <span className="text-2xl font-bold text-green-400">{stats.active_subscriptions}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Active Subscriptions</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <Clock className="w-8 h-8 text-blue-400" />
-              <span className="text-2xl font-bold text-blue-400">{stats.trial_subscriptions}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Trial Subscriptions</p>
-          </div>
-
-          <div className="bg-card border border-border rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <DollarSign className="w-8 h-8 text-yellow-400" />
-              <span className="text-2xl font-bold text-yellow-400">{formatCurrency(stats.monthly_revenue)}</span>
-            </div>
-            <p className="text-sm text-muted-foreground">Monthly Revenue</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {plans.map((plan) => (
+              <div key={plan.id} className="border border-border rounded-lg p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <h3 className="font-semibold text-foreground">{plan.name}</h3>
+                    <p className="text-sm text-muted-foreground">{formatDuration(plan.duration_seconds)}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEditPlan(plan)}
+                      className="p-2 hover:bg-secondary rounded-lg transition-colors"
+                    >
+                      <Edit className="w-4 h-4 text-foreground" />
+                    </button>
+                    <button
+                      onClick={() => handleDeletePlan(plan.id)}
+                      className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-lg font-bold text-primary mb-2">
+                  {plan.currency} {plan.price}
+                </p>
+                {plan.tags && plan.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {plan.tags.map((tag, idx) => (
+                      <span key={idx} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
-      )}
 
-      {/* Filters */}
-      <div className="bg-card border border-border rounded-lg p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by user ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-            />
+        {/* Subscription History */}
+        <div className="bg-card border border-border rounded-xl p-6">
+          <h2 className="text-xl font-bold text-foreground mb-4">Subscription History</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">User ID</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Plan</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Status</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Expires At</th>
+                  <th className="text-left p-2 text-sm font-medium text-muted-foreground">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((sub) => (
+                  <tr key={sub.id} className="border-b border-border hover:bg-secondary/50">
+                    <td className="p-2 text-foreground">{sub.user_id}</td>
+                    <td className="p-2 text-foreground">{sub.plan_name || 'N/A'}</td>
+                    <td className="p-2">
+                      {sub.is_active ? (
+                        <span className="inline-flex items-center gap-1 text-success">
+                          <CheckCircle className="w-4 h-4" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-destructive">
+                          <XCircle className="w-4 h-4" />
+                          Expired
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-2 text-foreground">{formatDate(sub.expires_at)}</td>
+                    <td className="p-2 text-foreground">{formatDate(sub.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="trial">Trial</option>
-            <option value="expired">Expired</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="pending">Pending</option>
-          </select>
-
-          <select
-            value={planFilter}
-            onChange={(e) => setPlanFilter(e.target.value)}
-            className="px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-          >
-            <option value="">All Plans</option>
-            <option value="free">Free</option>
-            <option value="basic">Basic</option>
-            <option value="premium">Premium</option>
-            <option value="premium_plus">Premium Plus</option>
-          </select>
+          {historyTotal > 20 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {(historyPage - 1) * 20 + 1} to {Math.min(historyPage * 20, historyTotal)} of {historyTotal}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setHistoryPage(p => Math.max(1, p - 1))}
+                  disabled={historyPage === 1}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setHistoryPage(p => p + 1)}
+                  disabled={historyPage * 20 >= historyTotal}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
 
-      {/* Subscription Plans Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {subscriptions.length === 0 ? (
-          <div className="col-span-full bg-card border border-border rounded-lg p-8 text-center">
-            <Crown className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No subscription plans found</p>
-            <p className="text-sm text-muted-foreground mt-2">Create your first plan to get started</p>
+        {/* Plan Modal */}
+        {showPlanModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full mx-4">
+              <h3 className="text-xl font-bold text-foreground mb-4">
+                {editingPlan ? 'Edit Plan' : 'Create Plan'}
+              </h3>
+              <form onSubmit={handleCreatePlan} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Plan Name</label>
+                  <input
+                    type="text"
+                    value={planForm.name}
+                    onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Duration</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      value={formatDurationInput(planForm.duration_seconds).value}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 0;
+                        const unit = formatDurationInput(planForm.duration_seconds).unit;
+                        setPlanForm({ ...planForm, duration_seconds: parseDurationInput(value, unit) });
+                      }}
+                      className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                      required
+                      min="1"
+                    />
+                    <select
+                      value={formatDurationInput(planForm.duration_seconds).unit}
+                      onChange={(e) => {
+                        const value = formatDurationInput(planForm.duration_seconds).value;
+                        setPlanForm({ ...planForm, duration_seconds: parseDurationInput(value, e.target.value) });
+                      }}
+                      className="px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                    >
+                      <option value="seconds">Seconds</option>
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Price</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={planForm.currency}
+                      onChange={(e) => setPlanForm({ ...planForm, currency: e.target.value })}
+                      className="w-20 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                      placeholder="Rs."
+                    />
+                    <input
+                      type="number"
+                      value={planForm.price}
+                      onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) || 0 })}
+                      className="flex-1 px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                      required
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Tags (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={planForm.tags.join(', ')}
+                    onChange={(e) => setPlanForm({ ...planForm, tags: e.target.value.split(',').map(t => t.trim()).filter(t => t) })}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                    placeholder="Most Popular, Loved"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Description</label>
+                  <textarea
+                    value={planForm.description}
+                    onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-foreground"
+                    rows="3"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    {editingPlan ? 'Update' : 'Create'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPlanModal(false);
+                      setEditingPlan(null);
+                    }}
+                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-muted transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        ) : (
-          subscriptions.map((subscription) => (
-            <SubscriptionCard
-              key={subscription.id}
-              subscription={subscription}
-              formatCurrency={formatCurrency}
-              getPlanColor={getPlanColor}
-              getStatusBadge={getStatusBadge}
-              onDelete={handleDeleteSubscription}
-              onEdit={handleEditClick}
-            />
-          ))
         )}
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 bg-card border border-border rounded-lg px-4 py-3">
-          <button
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            className="px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages}
-            className="px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-        </div>
-      )}
-      </main>
-
-      {/* Extend Modal */}
-      {showExtendModal && selectedSubscription && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold text-foreground mb-4">Extend Subscription</h2>
-            <p className="text-muted-foreground mb-4">
-              Extend subscription for User ID: <span className="text-foreground font-medium">{selectedSubscription.user_id}</span>
-            </p>
-            <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">Number of Days</label>
-              <input
-                type="number"
-                value={extendDays}
-                onChange={(e) => setExtendDays(parseInt(e.target.value))}
-                min="1"
-                max="365"
-                className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowExtendModal(false);
-                  setSelectedSubscription(null);
-                }}
-                className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleExtendSubscription}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Extend
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Create Subscription Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-foreground mb-4">Create Subscription Plan</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Subscription Name *</label>
-                <input
-                  type="text"
-                  value={newSubscription.subscription_name}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, subscription_name: e.target.value })}
-                  placeholder="e.g., Premium Monthly Plan"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Plan Type *</label>
-                <select
-                  value={newSubscription.plan}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, plan: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="free">Free</option>
-                  <option value="basic">Basic</option>
-                  <option value="premium">Premium</option>
-                  <option value="premium_plus">Premium Plus</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Duration *</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={newSubscription.duration_value}
-                    onChange={(e) => setNewSubscription({ ...newSubscription, duration_value: parseInt(e.target.value) || 1 })}
-                    placeholder="1"
-                    className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <select
-                    value={newSubscription.duration_unit}
-                    onChange={(e) => setNewSubscription({ ...newSubscription, duration_unit: e.target.value })}
-                    className="w-32 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="hour">Hour(s)</option>
-                    <option value="day">Day(s)</option>
-                    <option value="month">Month(s)</option>
-                    <option value="year">Year(s)</option>
-                  </select>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Subscription will be valid for {newSubscription.duration_value} {newSubscription.duration_unit}(s)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Status *</label>
-                <select
-                  value={newSubscription.status}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, status: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="trial">Trial</option>
-                  <option value="pending">Pending</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Currency *</label>
-                <select
-                  value={newSubscription.currency}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, currency: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="INR">🇮🇳 INR (Indian Rupee)</option>
-                  <option value="NPR">🇳🇵 NPR (Nepali Rupee)</option>
-                  <option value="USD">🌍 USD (US Dollar)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Custom Price (Optional)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={newSubscription.custom_price}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, custom_price: e.target.value })}
-                  placeholder="Leave empty to use default plan pricing"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Default prices: Free=0, Basic={newSubscription.currency === 'INR' ? '₹99' : newSubscription.currency === 'NPR' ? 'Rs.200' : '$1.99'}, 
-                  Premium={newSubscription.currency === 'INR' ? '₹299' : newSubscription.currency === 'NPR' ? 'Rs.500' : '$4.99'}, 
-                  Premium+={newSubscription.currency === 'INR' ? '₹499' : newSubscription.currency === 'NPR' ? 'Rs.800' : '$7.99'}
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Description</label>
-                <textarea
-                  value={newSubscription.description}
-                  onChange={(e) => setNewSubscription({ ...newSubscription, description: e.target.value })}
-                  placeholder="Enter subscription details or notes..."
-                  rows="3"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                />
-              </div>
-
-              <div className="bg-blue-900/20 border border-blue-800 rounded-lg p-3">
-                <p className="text-sm text-blue-300">
-                  <strong>Note:</strong> This will create a subscription plan card that users can purchase. Pricing will be calculated based on the plan type and duration.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowCreateModal(false);
-                  setNewSubscription({
-                    subscription_name: '',
-                    plan: 'basic',
-                    duration_value: 1,
-                    duration_unit: 'month',
-                    status: 'active',
-                    currency: 'INR',
-                    custom_price: '',
-                    description: ''
-                  });
-                }}
-                className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateSubscription}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Create Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Subscription Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-foreground mb-4">Edit Subscription Plan</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Subscription Name *</label>
-                <input
-                  type="text"
-                  value={editSubscription.subscription_name}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, subscription_name: e.target.value })}
-                  placeholder="e.g., Premium Monthly Plan"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Plan Type *</label>
-                <select
-                  value={editSubscription.plan}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, plan: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="free">Free</option>
-                  <option value="basic">Basic</option>
-                  <option value="premium">Premium</option>
-                  <option value="premium_plus">Premium Plus</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Duration *</label>
-                <div className="flex gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    value={editSubscription.duration_value}
-                    onChange={(e) => setEditSubscription({ ...editSubscription, duration_value: parseInt(e.target.value) || 1 })}
-                    placeholder="1"
-                    className="flex-1 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <select
-                    value={editSubscription.duration_unit}
-                    onChange={(e) => setEditSubscription({ ...editSubscription, duration_unit: e.target.value })}
-                    className="w-32 px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="hour">Hour(s)</option>
-                    <option value="day">Day(s)</option>
-                    <option value="month">Month(s)</option>
-                    <option value="year">Year(s)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Status *</label>
-                <select
-                  value={editSubscription.status}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, status: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="trial">Trial</option>
-                  <option value="pending">Pending</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Currency *</label>
-                <select
-                  value={editSubscription.currency}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, currency: e.target.value })}
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
-                  <option value="INR">🇮🇳 INR (Indian Rupee)</option>
-                  <option value="NPR">🇳🇵 NPR (Nepali Rupee)</option>
-                  <option value="USD">🌍 USD (US Dollar)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Custom Price</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editSubscription.custom_price}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, custom_price: e.target.value })}
-                  placeholder="Leave empty to use default plan pricing"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-muted-foreground mb-2">Description</label>
-                <textarea
-                  value={editSubscription.description}
-                  onChange={(e) => setEditSubscription({ ...editSubscription, description: e.target.value })}
-                  placeholder="Enter subscription details or notes..."
-                  rows="3"
-                  className="w-full px-4 py-2 bg-secondary border border-border rounded-lg text-foreground focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowEditModal(false);
-                  setEditSubscription({
-                    subscription_name: '',
-                    plan: 'basic',
-                    duration_value: 1,
-                    duration_unit: 'month',
-                    status: 'active',
-                    currency: 'INR',
-                    custom_price: '',
-                    description: ''
-                  });
-                }}
-                className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateSubscription}
-                className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Update Plan
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 bg-red-600/20 rounded-full">
-                <AlertCircle className="w-6 h-6 text-red-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">Delete Subscription Plan</h2>
-                <p className="text-sm text-muted-foreground">This action cannot be undone</p>
-              </div>
-            </div>
-            
-            <p className="text-muted-foreground mb-6">
-              Are you sure you want to permanently delete this subscription plan? All associated data will be removed.
-            </p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSelectedSubscription(null);
-                }}
-                className="flex-1 px-4 py-2 bg-secondary text-foreground rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:opacity-90 transition-opacity"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

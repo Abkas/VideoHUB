@@ -1,61 +1,36 @@
-import { axiosInstance as axios } from '../../../lib/axios';
+import { axiosInstance as axios } from '../lib/axios';
 
-// Get current user's active subscription
-export const getMyActiveSubscription = async () => {
-  const response = await axios.get('/subscriptions/me');
+/**
+ * Get subscription status
+ * Returns: { expires_at, remaining_seconds, is_active }
+ */
+export const getSubscriptionStatus = async () => {
+  const response = await axios.get('/subscription/status');
   return response.data;
 };
 
-// Get current user's subscription history
-export const getMySubscriptionHistory = async (skip = 0, limit = 20) => {
-  const response = await axios.get(`/subscriptions/me/history?skip=${skip}&limit=${limit}`);
+/**
+ * Subscribe to a plan
+ * @param {string} planId - "30_min", "1_hour", "1_day", "1_week"
+ */
+export const subscribe = async (planId) => {
+  const response = await axios.post('/subscription/subscribe', { plan_id: planId });
   return response.data;
 };
 
-// Get all subscriptions for current user (active and historical)
-export const getAllMySubscriptions = async () => {
-  const response = await axios.get('/subscriptions/me/all');
+/**
+ * Extend subscription
+ * @param {string} planId - "30_min", "1_hour", "1_day", "1_week"
+ */
+export const extendSubscription = async (planId) => {
+  const response = await axios.post('/subscription/extend', { plan_id: planId });
   return response.data;
 };
 
-// Update subscription settings
-export const updateMySubscription = async (subscriptionId, data) => {
-  const response = await axios.put(`/subscriptions/${subscriptionId}`, data);
-  return response.data;
-};
-
-// Cancel subscription
-export const cancelMySubscription = async (subscriptionId) => {
-  const response = await axios.post(`/subscriptions/${subscriptionId}/cancel`);
-  return response.data;
-};
-
-// Create subscription
-export const createSubscription = async (subscriptionData) => {
-  const response = await axios.post('/subscriptions/', subscriptionData);
-  return response.data;
-};
-
-// Get all available subscription plans
+/**
+ * Get all available subscription plans
+ */
 export const getSubscriptionPlans = async () => {
-  const response = await axios.get('/subscriptions/plans');
-  return response.data;
-};
-
-// Get subscription statistics
-export const getSubscriptionStats = async () => {
-  const response = await axios.get('/subscriptions/stats');
-  return response.data;
-};
-
-// Get subscription by ID
-export const getSubscriptionById = async (subscriptionId) => {
-  const response = await axios.get(`/subscriptions/${subscriptionId}`);
-  return response.data;
-};
-
-// Get user's subscription history
-export const getUserSubscriptionHistory = async (userId) => {
-  const response = await axios.get(`/subscriptions/user/${userId}`);
+  const response = await axios.get('/subscription/plans');
   return response.data;
 };

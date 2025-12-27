@@ -1,127 +1,248 @@
-from fastapi import HTTPException
+from datetime import datetime, timedelta
 from app.core.database import client
 from bson.objectid import ObjectId
-from datetime import datetime, timedelta
 
 db = client['videohub']
 
+# Plan definitions: plan_id -> duration in seconds
+PLANS = {
+    "30_min": 30 * 60,  # 30 minutes
+    "1_hour": 60 * 60,  # 1 hour
+    "1_day": 24 * 60 * 60,  # 24 hours
+    "1_week": 7 * 24 * 60 * 60,  # 7 days
+}
 
-def create_subscription(subscription_data, user_id):
-    """Create a new subscription for a user"""
-    subscription_dict = subscription_data.dict()
-    subscription_dict['user_id'] = user_id
-    subscription_dict['status'] = 'active'
-    subscription_dict['created_at'] = datetime.now()
-    subscription_dict['started_at'] = datetime.now()
-    
-    # Calculate expiration based on billing cycle
-    if subscription_dict['billing_cycle'] == 'monthly':
-        subscription_dict['expires_at'] = datetime.now() + timedelta(days=30)
-    elif subscription_dict['billing_cycle'] == 'yearly':
-        subscription_dict['expires_at'] = datetime.now() + timedelta(days=365)
-    
-    result = db['subscriptions'].insert_one(subscription_dict)
-    return str(result.inserted_id)
+# Plan metadata for display
+PLAN_METADATA = {
+    "30_min": {
+        "name": "30 Minutes",
+        "duration_display": "30 Minutes",
+        "price": 29,
+        "currency": "Rs.",
+        "tags": ["Most Popular"]
+    },
+    "1_hour": {
+        "name": "1 Hour",
+        "duration_display": "1 Hour",
+        "price": 49,
+        "currency": "Rs.",
+        "tags": ["Loved"]
+    },
+    "1_day": {
+        "name": "1 Day",
+        "duration_display": "24 Hours",
+        "price": 149,
+        "currency": "Rs.",
+        "tags": []
+    },
+    "1_week": {
+        "name": "1 Week",
+        "duration_display": "7 Days",
+        "price": 399,
+        "currency": "Rs.",
+        "tags": []
+    },
+}
 
 
-def get_subscription_by_id(subscription_id):
-    """Get subscription by ID - checks both subscription_plans and subscriptions"""
-    # Try subscription_plans first
-    subscription = db['subscription_plans'].find_one({'_id': ObjectId(subscription_id)})
+def get_subscription_status(user_id: int) -> dict:
+    """
+    Get user's subscription status
+    Returns: expires_at, remaining_seconds, is_active
+    """
+    subscription = db['time_subscriptions'].find_one({'user_id': user_id})
     
-    # If not found in plans, try subscriptions collection
     if not subscription:
-        subscription = db['subscriptions'].find_one({'_id': ObjectId(subscription_id)})
+        return {
+            "expires_at": None,
+            "remaining_seconds": 0,
+            "is_active": False
+        }
     
-    if subscription:
-        subscription['id'] = str(subscription['_id'])
-        subscription.pop('_id')
-    return subscription
+    expires_at = subscription['expires_at']
+    now = datetime.utcnow()
+    
+    # Check if expired
+    if expires_at <= now:
+        return {
+            "expires_at": expires_at.isoformat(),
+            "remaining_seconds": 0,
+            "is_active": False
+        }
+    
+    # Calculate remaining seconds
+    remaining = (expires_at - now).total_seconds()
+    
+    return {
+        "expires_at": expires_at.isoformat(),
+        "remaining_seconds": int(remaining),
+        "is_active": True
+    }
 
 
-def get_user_active_subscription(user_id):
-    """Get user's active subscription"""
-    subscription = db['subscriptions'].find_one({
+def subscribe_user(user_id: int, plan_id: str) -> dict:
+    """
+    Subscribe user to a plan or extend existing subscription
+    If expires_at is in the future, add time to it
+    If expired or null, set expires_at = now + plan duration
+    """
+    if plan_id not in PLANS:
+        raise ValueError(f"Invalid plan_id: {plan_id}")
+    
+    duration_seconds = PLANS[plan_id]
+    now = datetime.utcnow()
+    
+    # Get existing subscription
+    existing = db['time_subscriptions'].find_one({'user_id': user_id})
+    
+    if existing and existing.get('expires_at'):
+        expires_at = existing['expires_at']
+        # If subscription is still active (not expired), add time to it
+        if expires_at > now:
+            new_expires_at = expires_at + timedelta(seconds=duration_seconds)
+        else:
+            # Expired, start fresh from now
+            new_expires_at = now + timedelta(seconds=duration_seconds)
+    else:
+        # No subscription or no expires_at, start fresh
+        new_expires_at = now + timedelta(seconds=duration_seconds)
+    
+    # Update or create subscription
+    subscription_data = {
         'user_id': user_id,
-        'status': 'active'
-    })
-    if subscription:
-        subscription['id'] = str(subscription['_id'])
-        subscription.pop('_id')
-    return subscription
-
-
-def get_user_subscription_history(user_id, skip=0, limit=20):
-    """Get user's subscription history"""
-    subscriptions = list(db['subscriptions'].find({'user_id': user_id})
-                        .sort('created_at', -1)
-                        .skip(skip)
-                        .limit(limit))
-    for subscription in subscriptions:
-        subscription['id'] = str(subscription['_id'])
-        subscription.pop('_id')
-    return subscriptions
-
-
-def update_subscription(subscription_id, update_data, user_id):
-    """Update subscription settings"""
-    subscription = get_subscription_by_id(subscription_id)
-    if not subscription:
-        raise HTTPException(status_code=404, detail="Subscription not found")
+        'expires_at': new_expires_at,
+        'updated_at': now
+    }
     
-    if subscription.get('user_id') != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    if existing:
+        # Update existing
+        db['time_subscriptions'].update_one(
+            {'user_id': user_id},
+            {'$set': subscription_data}
+        )
+    else:
+        # Create new
+        subscription_data['created_at'] = now
+        db['time_subscriptions'].insert_one(subscription_data)
     
-    result = db['subscriptions'].update_one(
-        {'_id': ObjectId(subscription_id)},
-        {'$set': update_data.dict(exclude_unset=True)}
-    )
-    return get_subscription_by_id(subscription_id)
+    return get_subscription_status(user_id)
 
 
-def cancel_subscription(subscription_id, user_id):
-    """Cancel a subscription"""
-    subscription = get_subscription_by_id(subscription_id)
-    if not subscription:
-        raise HTTPException(status_code=404, detail="Subscription not found")
-    
-    if subscription.get('user_id') != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    result = db['subscriptions'].update_one(
-        {'_id': ObjectId(subscription_id)},
-        {'$set': {'status': 'cancelled', 'cancelled_at': datetime.now()}}
-    )
-    return result.modified_count > 0
+def extend_subscription(user_id: int, plan_id: str) -> dict:
+    """
+    Extend subscription (same logic as subscribe)
+    """
+    return subscribe_user(user_id, plan_id)
 
 
-def upgrade_subscription(subscription_id, new_plan, user_id):
-    """Upgrade subscription to a higher plan"""
-    subscription = get_subscription_by_id(subscription_id)
-    if not subscription:
-        raise HTTPException(status_code=404, detail="Subscription not found")
+def get_all_plans() -> list:
+    """
+    Get all available subscription plans from database
+    """
+    # Fetch plans from database
+    db_plans = list(db['subscription_plans'].find({'status': 'active'}).sort('duration_seconds', 1))
     
-    if subscription.get('user_id') != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    plans = []
+    for plan in db_plans:
+        # Calculate duration display
+        duration_seconds = plan.get('duration_seconds', 0)
+        duration_display = format_duration(duration_seconds)
+        
+        plans.append({
+            "plan_id": str(plan['_id']),  # Use MongoDB _id as plan_id
+            "name": plan.get('name', 'Plan'),
+            "duration_seconds": duration_seconds,
+            "duration_display": duration_display,
+            "price": plan.get('price', 0),
+            "currency": plan.get('currency', 'Rs.'),
+            "tags": plan.get('tags', []),
+            "description": plan.get('description', '')
+        })
     
-    result = db['subscriptions'].update_one(
-        {'_id': ObjectId(subscription_id)},
-        {'$set': {'plan': new_plan, 'updated_at': datetime.now()}}
-    )
-    return result.modified_count > 0
+    # If no plans in database, return empty list (admin should create plans)
+    return plans
 
 
-def downgrade_subscription(subscription_id, new_plan, user_id):
-    """Downgrade subscription to a lower plan"""
-    subscription = get_subscription_by_id(subscription_id)
-    if not subscription:
-        raise HTTPException(status_code=404, detail="Subscription not found")
+def format_duration(seconds: int) -> str:
+    """Format duration in seconds to human-readable string"""
+    if seconds < 60:
+        return f"{seconds} Seconds"
+    elif seconds < 3600:
+        minutes = seconds // 60
+        return f"{minutes} Minute{'s' if minutes != 1 else ''}"
+    elif seconds < 86400:
+        hours = seconds // 3600
+        return f"{hours} Hour{'s' if hours != 1 else ''}"
+    else:
+        days = seconds // 86400
+        return f"{days} Day{'s' if days != 1 else ''}"
+
+
+def subscribe_user(user_id: int, plan_id: str) -> dict:
+    """
+    Subscribe user to a plan or extend existing subscription
+    If expires_at is in the future, add time to it
+    If expired or null, set expires_at = now + plan duration
+    """
+    now = datetime.utcnow()
     
-    if subscription.get('user_id') != user_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    # Get plan from database
+    plan = None
+    try:
+        # Try to find by MongoDB ObjectId
+        plan = db['subscription_plans'].find_one({'_id': ObjectId(plan_id), 'status': 'active'})
+    except:
+        pass
     
-    result = db['subscriptions'].update_one(
-        {'_id': ObjectId(subscription_id)},
-        {'$set': {'plan': new_plan, 'updated_at': datetime.now()}}
-    )
-    return result.modified_count > 0
+    if not plan:
+        # Fallback: try to find by plan_id field or name
+        plan = db['subscription_plans'].find_one({
+            '$or': [
+                {'plan_id': plan_id, 'status': 'active'},
+                {'name': plan_id, 'status': 'active'}
+            ]
+        })
+    
+    if not plan:
+        raise ValueError(f"Invalid plan_id: {plan_id}. Plan not found or inactive.")
+    
+    duration_seconds = plan.get('duration_seconds', 0)
+    if duration_seconds <= 0:
+        raise ValueError("Plan duration must be greater than 0")
+    
+    # Get existing subscription
+    existing = db['time_subscriptions'].find_one({'user_id': user_id})
+    
+    if existing and existing.get('expires_at'):
+        expires_at = existing['expires_at']
+        # If subscription is still active (not expired), add time to it
+        if expires_at > now:
+            new_expires_at = expires_at + timedelta(seconds=duration_seconds)
+        else:
+            # Expired, start fresh from now
+            new_expires_at = now + timedelta(seconds=duration_seconds)
+    else:
+        # No subscription or no expires_at, start fresh
+        new_expires_at = now + timedelta(seconds=duration_seconds)
+    
+    # Update or create subscription
+    subscription_data = {
+        'user_id': user_id,
+        'expires_at': new_expires_at,
+        'plan_id': str(plan['_id']),
+        'plan_name': plan.get('name', 'Plan'),
+        'updated_at': now
+    }
+    
+    if existing:
+        # Update existing
+        db['time_subscriptions'].update_one(
+            {'user_id': user_id},
+            {'$set': subscription_data}
+        )
+    else:
+        # Create new
+        subscription_data['created_at'] = now
+        db['time_subscriptions'].insert_one(subscription_data)
+    
+    return get_subscription_status(user_id)
